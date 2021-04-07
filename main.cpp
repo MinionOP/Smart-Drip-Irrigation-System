@@ -85,8 +85,8 @@ void setup() {
   lcd.begin();
   Serial.begin(9600);
   lcd.backlight();
-  printMainLCD();
-  //printCropLCD(0,0);
+  //printMainLCD();
+  printCropLCD(0,0);
 
   //Buttons
   pinMode(BUTTON_DOWN, INPUT_PULLUP);
@@ -157,10 +157,10 @@ void printCropLCD(uint8_t currValve, uint8_t page){
       lcd.print(">"); lcd.setCursor(1,2);
       lcd.print(cropList[0]); lcd.setCursor(1,3);
       lcd.print(cropList[1]);
+      currCursor[ROW] = 2;
       break;
     }
     case 1:{
-      lcd.print(">");
       lcd.setCursor(1,0);
       lcd.print(cropList[2]); lcd.setCursor(1,1);
       lcd.print(cropList[3]); lcd.setCursor(1,2);
@@ -169,7 +169,6 @@ void printCropLCD(uint8_t currValve, uint8_t page){
       break;
     }
     case 2:{      
-      lcd.print(">");
       lcd.setCursor(1,0);
       lcd.print(cropList[6]); lcd.setCursor(1,1);
       lcd.print("Go back");
@@ -218,33 +217,18 @@ void downButton(){
 
     }
     case CROP_LCD:{
-      if(currCursor[ROW] == 3 && page<2){
-        printCursor(currCursor[ROW],' ');
-        page++;
+      if(page == MAX_PAGE && currCursor[ROW] == 1){break;}
+      if(currCursor[ROW] == 3){
         currCursor[ROW] = 0;
+        page++;
         printCropLCD(currValve, page);
-        printCursor(currCursor[ROW],'>');
-        break;
-      }
-      else if(currCursor[ROW] < 2 && page == 0){
-        printCursor(2,' ');
-        currCursor[ROW] = 3;
-        printCursor(currCursor[ROW],'>');
-      }
-      else if(page == 2){
-        if(currCursor[ROW] == 1){
-          break;
-        }
-        printCursor(currCursor[ROW],' ');
-        currCursor[ROW] = (currCursor[ROW] + 1)%2;
         printCursor(currCursor[ROW],'>');
       }
       else{
         printCursor(currCursor[ROW],' ');
-        currCursor[ROW] = (currCursor[ROW]+1)%4;
+        currCursor[ROW] = currCursor[ROW]+1;
         printCursor(currCursor[ROW],'>');
       }
-      break;
     }
     case TIME_LCD:{
       break;
@@ -281,12 +265,18 @@ void upButton(){
 
     }
     case CROP_LCD:{
-      if(page == 0){
-
-      }else if(page == MAX_PAGE){
-
+      if(page == 0 && currCursor[ROW] == 2){break;}
+      if(currCursor[ROW] == 0){
+        currCursor[ROW] = 3;
+        page--;
+        printCropLCD(currValve, page);
+        printCursor(currCursor[ROW],'>');
       }
-      
+      else{
+        printCursor(currCursor[ROW],' ');
+        currCursor[ROW] = currCursor[ROW] - 1;
+        printCursor(currCursor[ROW], '>');
+      }
     }
     case TIME_LCD:{
       break;
