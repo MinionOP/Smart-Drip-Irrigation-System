@@ -155,6 +155,7 @@ void printValveSensorLCD(void){
   lcd.print(currSensorValue[2]); lcd.print(" %");
 
   currCursor[ROW] = 0;
+  page = 0;
   currDisplayTracker = VALVE_SENSOR_LCD;
 }
 void printCropLCD(uint8_t currValve, uint8_t page){
@@ -317,6 +318,7 @@ void debounce(int currState, uint8_t buttonType){
       else if(buttonType == 2){
         selectButton();
       }
+      //Serial.println((String)currCursor[ROW] + " D: " + (String)currDisplayTracker + " P: "+ (String)page);
     }  
   }
   prevButtonState[buttonType] = currState;
