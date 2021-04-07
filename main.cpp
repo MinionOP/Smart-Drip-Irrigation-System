@@ -1,7 +1,8 @@
 #include <Arduino.h>
 
 //External Libraries
-#include <LiquidCrystal_I2C.h> //Taken from: 
+#include <LiquidCrystal_I2C.h> //Taken from: https://github.com/fdebrabander/Arduino-LiquidCrystal-I2C-library
+
 
 //User Interface
 #define MAIN_LCD 0
@@ -16,7 +17,7 @@
 //Pin on arduino
 const uint8_t BUTTON_UP = 8;
 const uint8_t BUTTON_DOWN = 9;
-const uint8_t BUTTON_SEL = 10;
+const uint8_t BUTTON_SELECT = 10;
 
 //Crop List
 #define MAX_CROP 7
@@ -25,7 +26,11 @@ const uint8_t BUTTON_SEL = 10;
 #define COTTON  2
 #define TOMATO  3
 #define POTATO  4
+#define toADD1  5
+#define toADD2  6
 
+
+//Hold the current cursor location
 #define COLUMN  0
 #define ROW     1
 
@@ -80,22 +85,23 @@ LiquidCrystal_I2C lcd(0x27,   //lcd_addr. Can be found by running an I2C scanner
                         4);   //Number of rows
                         
 
+//Setup code
 void setup() {
-  // put your setup code here, to run once:
   lcd.begin();
   Serial.begin(9600);
   lcd.backlight();
-  //printMainLCD();
-  printCropLCD(0,0);
+  printMainLCD();
 
-  //Buttons
+  //User interface buttons
   pinMode(BUTTON_DOWN, INPUT_PULLUP);
   pinMode(BUTTON_UP, INPUT_PULLUP);
-  pinMode(BUTTON_SEL,INPUT);
+  pinMode(BUTTON_SELECT,INPUT_PULLUP);
 }
-int counter = 0;
+
+int counter = 0;  //Use for testing
+
+//Run repeatedly
 void loop() {
-  // put your main code here, to run repeatedly:
   readButton();
 }
 
@@ -120,7 +126,7 @@ void printMainLCD(void){
   lcd.setCursor(14,2);
   lcd.print(temperature);
 
-
+  currCursor[ROW] = 0;
   currDisplayTracker = MAIN_LCD;
 }
 void printMenuLCD(void){
@@ -128,6 +134,8 @@ void printMenuLCD(void){
   lcd.print(">Valve/Sensors"); lcd.setCursor(0,1);
   lcd.print(" Set Time"); lcd.setCursor(0,2);
   lcd.print(" Go to Main Display");
+
+  currCursor[ROW] = 0;
   currDisplayTracker = MENU_LCD;
 }
 void printValveSensorLCD(void){
@@ -146,6 +154,7 @@ void printValveSensorLCD(void){
   lcd.print(currSensorValue[1]); lcd.print(" %"); lcd.setCursor(16,3);
   lcd.print(currSensorValue[2]); lcd.print(" %");
 
+  currCursor[ROW] = 0;
   currDisplayTracker = VALVE_SENSOR_LCD;
 }
 void printCropLCD(uint8_t currValve, uint8_t page){
@@ -166,12 +175,14 @@ void printCropLCD(uint8_t currValve, uint8_t page){
       lcd.print(cropList[3]); lcd.setCursor(1,2);
       lcd.print(cropList[4]); lcd.setCursor(1,3);
       lcd.print(cropList[5]);
+      currCursor[ROW] = 0;
       break;
     }
     case 2:{      
       lcd.setCursor(1,0);
       lcd.print(cropList[6]); lcd.setCursor(1,1);
       lcd.print("Go back");
+      currCursor[ROW] = 0;
       break;
     }
   }
@@ -184,38 +195,23 @@ void printTimeLCD(void){
 void readButton(void){
   debounce(digitalRead(BUTTON_DOWN), 0);
   debounce(digitalRead(BUTTON_UP), 1);
-  /*int reading = digitalRead(BUTTON_DOWN);
-  if(reading != prevButtonState[0]){
-    debounceTimeArr[0] = millis();
-  }
-  if(millis() - debounceTimeArr[0] > debounceDelay && reading != buttonState[0]){
-    buttonState[0] = reading;
-    if(buttonState[0] == LOW){
-      downButton();
-    }
-  }
-  prevButtonState[0] = reading;*/
+  debounce(digitalRead(BUTTON_SELECT), 2);
 }
 void downButton(){
   switch(currDisplayTracker){
     case MAIN_LCD:{
       printMenuLCD();
-      break;
-    }
+      break;}
     case MENU_LCD:{
       printCursor(currCursor[ROW],' ');
       currCursor[ROW] = (currCursor[ROW]+1)%3;
       printCursor(currCursor[ROW],'>');
-      break;
-
-    }
+      break;}
     case VALVE_SENSOR_LCD:{
       printCursor(currCursor[ROW],' ');
       currCursor[ROW] = (currCursor[ROW]+1)%4;
       printCursor(currCursor[ROW],'>');
-      break;
-
-    }
+      break;}
     case CROP_LCD:{
       if(page == MAX_PAGE && currCursor[ROW] == 1){break;}
       if(currCursor[ROW] == 3){
@@ -229,18 +225,16 @@ void downButton(){
         currCursor[ROW] = currCursor[ROW]+1;
         printCursor(currCursor[ROW],'>');
       }
-    }
+      break;}
     case TIME_LCD:{
-      break;
-    }
+      break;}
   }
 }
 void upButton(){
   switch(currDisplayTracker){
     case MAIN_LCD:{
       printMenuLCD();
-      break;
-    }
+      break;}
     case MENU_LCD:{
       printCursor(currCursor[ROW],' ');
       if(currCursor[ROW] <=0){
@@ -250,8 +244,7 @@ void upButton(){
         currCursor[ROW] = (currCursor[ROW]-1);
       }
       printCursor(currCursor[ROW],'>');
-      break;
-    }
+      break;}
     case VALVE_SENSOR_LCD:{
       printCursor(currCursor[ROW],' ');
       if(currCursor[ROW] <=0){
@@ -261,15 +254,14 @@ void upButton(){
         currCursor[ROW] = (currCursor[ROW]-1);
       }
       printCursor(currCursor[ROW],'>');
-      break;
-
-    }
+      break;}
     case CROP_LCD:{
       if(page == 0 && currCursor[ROW] == 2){break;}
       if(currCursor[ROW] == 0){
-        currCursor[ROW] = 3;
         page--;
         printCropLCD(currValve, page);
+        printCursor(currCursor[ROW], ' ');
+        currCursor[ROW] = 3;
         printCursor(currCursor[ROW],'>');
       }
       else{
@@ -277,11 +269,35 @@ void upButton(){
         currCursor[ROW] = currCursor[ROW] - 1;
         printCursor(currCursor[ROW], '>');
       }
-    }
+      break;}
     case TIME_LCD:{
-      break;
-
-    }
+      break;}
+  }
+}
+void selectButton(){
+  switch(currDisplayTracker){
+    case MAIN_LCD:{
+      printMenuLCD();
+      break;}
+    case MENU_LCD:{
+      if(currCursor[ROW] == 0){printValveSensorLCD();}
+      else if(currCursor[ROW] == 1){printTimeLCD();}
+      else if(currCursor[ROW] == 2){printMainLCD();}
+      break;}
+    case VALVE_SENSOR_LCD:{
+      if(currCursor[ROW] == 0){printMenuLCD();}
+      else{
+        currValve = currCursor[ROW] - 1;
+        printCropLCD(currCrops[currCursor[ROW] - 1],0);
+      }
+      break;}
+    case CROP_LCD:{
+      if(page == 2 && currCursor[ROW] == 1){printValveSensorLCD(); break;}
+      if(page == 0){currCrops[currValve] = currCursor[ROW]-2;}
+      else if(page == 1){currCrops[currValve] = currCursor[ROW]+2;}
+      else if(page == 2){currCrops[currValve] = currCursor[ROW]+5;}
+      printValveSensorLCD();
+      break;}
   }
 }
 void debounce(int currState, uint8_t buttonType){
@@ -299,6 +315,7 @@ void debounce(int currState, uint8_t buttonType){
         upButton();
       }
       else if(buttonType == 2){
+        selectButton();
       }
     }  
   }
@@ -331,7 +348,7 @@ void printCursor(uint8_t row, char c){
 // Valve3:Corn    84%
 //------------------------------
 
-//Page 1
+//Page 0
 //----------CropLCD-------------
 // Current Crop:Corn
 // Select:
@@ -339,7 +356,7 @@ void printCursor(uint8_t row, char c){
 // Bean
 //------------------------------
 
-//Page 2
+//Page 1
 //----------CropLCD-------------
 // Cotton
 // Tomato
@@ -347,7 +364,7 @@ void printCursor(uint8_t row, char c){
 // toAdd
 //------------------------------
 
-//Page 3
+//Page 2
 //----------CropLCD-------------
 // toAdd
 // Go back
