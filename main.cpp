@@ -296,7 +296,7 @@ void updateValueLCD(uint8_t type){
       lcd.print(soilMoistureValue[2]);
     }
     case 1:{
-      
+
     }
     case 2:{
 
@@ -447,12 +447,12 @@ void readSoilSensor(void){
 // Cotton
 // Tomato
 // Potato
-// toAdd
+// Tobacco
 //------------------------------
 
 //Page 2
 //----------CropLCD-------------
-// toAdd
+// Papaya
 // Go back
 // 
 // 
