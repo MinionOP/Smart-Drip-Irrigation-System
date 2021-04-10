@@ -12,35 +12,62 @@
 #define CROP_LCD 3
 #define TIME_LCD 4 
 
-#define MAX_PAGE 2
+//----------------------------
+//Irrigation 
+#define MAX_SOIL_SENSOR 3
+#define MAX_VALVE       3
+#define AIR_VALUE       583
+#define WATER_VALUE     320
 
-//User input
-//Pin on arduino
-const uint8_t BUTTON_UP_PIN = 8;
-const uint8_t BUTTON_DOWN_PIN = 9;
-const uint8_t BUTTON_SELECT_PIN = 10;
+//Turn on valve if soil moisture falls below threshold
+#define CORN_THRESHOLD        80
+#define BEAN_THRESHOLD        80
+#define COTTON_THRESHOLD      80
+#define TOMATO_THRESHOLD      80
+#define POTATO_THRESHOLD      80
+#define TOBACCO_THRESHOLD     80
+#define PAPAYA_THRESHOLD      80
 
 //Crop List
-#define MAX_CROP 7
-#define CORN    0
-#define BEAN    1
-#define COTTON  2
-#define TOMATO  3
-#define POTATO  4
-#define toADD1  5
-#define toADD2  6
+#define MAX_CROP  7
+#define CORN      0
+#define BEAN      1
+#define COTTON    2
+#define TOMATO    3
+#define POTATO    4
+#define TOBACCO   5
+#define PAPAYA    6
 
 
+//----------------------------
 //Hold the current cursor location
 #define COLUMN  0
 #define ROW     1
 
 
+//----------------------------
+//Digital pins for turning soil sensors ON/OFF
+#define SOIL_SENSOR1_POWER  11
+#define SOIL_SENSOR2_POWER  12
+#define SOIL_SENSOR3_POWER  13
+
+
+//Pin on arduino
+//User input
+const uint8_t BUTTON_UP_PIN = 8;
+const uint8_t BUTTON_DOWN_PIN = 9;
+const uint8_t BUTTON_SELECT_PIN = 10;
+
+
+//Array to hold the digital pins for turning the soil sensors ON/OFF to conserve power
+const uint8_t soilSensorPower[MAX_SOIL_SENSOR] = {SOIL_SENSOR1_POWER, SOIL_SENSOR2_POWER, SOIL_SENSOR3_POWER};
+//MOISTURE_SENSOR1_PIN = A0
+
+
 //----------------------------------------------------------------------------------------
 //-------------------------------------User Interface-------------------------------------
 //Functions to print on LCD
-
-
+//Layout of displays can be found under the reference
 void printMainLCD(void);
 void printMenuLCD(void);
 void printValveSensorLCD(void);
@@ -49,11 +76,11 @@ void printCropLCD(void);
 
 struct Menu{
   void (*print)();
-  uint8_t startPos;
-  uint8_t maxRows;
+  uint8_t startPos;   //Row cursor will begin
+  uint8_t maxRows;    //Max/Total number of rows
   int32_t maxPage;    //Total Page = maxRows/4
   int32_t lastPos;    //Last Position = (maxRows % 4)-1
-  bool circular;
+  bool circular;      //Circular if cursor loop back to top of list
 };
 
 Menu menu[MAX_DISPLAY] = {  printMainLCD, 0, 3, menu[0].maxRows/4, (menu[0].maxRows%4)-1, false,         
@@ -63,21 +90,34 @@ Menu menu[MAX_DISPLAY] = {  printMainLCD, 0, 3, menu[0].maxRows/4, (menu[0].maxR
                             printTimeLCD, 0, 4, menu[4].maxRows/4, (menu[4].maxRows%4)-1, false
                             };
 
+
+//Calling function will update the value on LCD without reprinting the entire display
+//Type:
+ //Soil Sensor = 0, Temperature Sensor = 1, Valve = 2
+void updateValueLCD(uint8_t type);  
+
+
 //Button Functions
-void readButtons(void);
 //Read inputs from user
 void selectButton(void);
-
-//Helper Funciton
 void updateCursor(int8_t direction); //down = -1, up = 1;
 
 //Variables
+//Keep track of what display is currently being shown on the LCD
+//Example: If the LCD is currently on menu then currDisplay = MENU_LCD
 uint8_t currDisplay;
+
+//Hold the current position of the cursor
 uint8_t currCursor[2]= {0,0}; //[Columns,Rows]
+//Hold the current page. Page will be 0 if we only need 4 rows for a display
+uint8_t page = 0;
+
+//Hold the current valve that is being configured
+uint8_t currValve = 0;
+
+//Temporary values used for testing the display
 uint8_t hour = 9; uint8_t min=50;
 uint8_t temperature = 85;
-uint8_t page = 0;
-uint8_t currValve = 0; //Testing
 
 //Account for debounce
 void debounce(int currState, uint8_t buttonType);
@@ -86,13 +126,23 @@ int buttonState[3] = {HIGH, HIGH, HIGH};
 int prevButtonState[3] = {HIGH, HIGH, HIGH};
 uint8_t debounceDelay = 50;
 
+//------------------------------Scheduling and Time----------------------------------------
+//In milliseconds
+//Soil sensor will run every x seconds
+unsigned long soilSensorInterval = 1000;    
+unsigned long prevMillis = 0;
 
 
 //----------------------------------------------------------------------------------------
-//------------------------------------------Crops-----------------------------------------
+//---------------------------------------Irrigation---------------------------------------
 char cropList[MAX_CROP][10] = {"Corn", "Bean", "Cotton", "Tomato", "Potato", "Tobacco", "Papaya"};
-uint8_t currCrops[3] = {CORN,BEAN,COTTON}; //Valve 1-3
-uint8_t currSensorValue[3] = {0,0,0};
+uint8_t currCrops[MAX_VALVE] = {CORN,BEAN,COTTON}; //Valve 1-3
+int soilMoistureValue[MAX_SOIL_SENSOR] = {0,0,0};
+uint8_t threshold[MAX_SOIL_SENSOR] = {0,0,0};
+
+void readSoilSensor(void);
+void readTemperatureSensor(void);
+void readValve(void);
 
 //----------------------------------------------------------------------------------------
 
@@ -105,20 +155,47 @@ LiquidCrystal_I2C lcd(0x27,   //lcd_addr. Can be found by running an I2C scanner
 void setup() {
   lcd.begin();
   lcd.backlight();
-  Serial.begin(9600);
-  menu[MAIN_LCD].print();
 
-  //User interface buttons
+   //User interface buttons
   pinMode(BUTTON_DOWN_PIN, INPUT_PULLUP);
   pinMode(BUTTON_UP_PIN, INPUT_PULLUP);
   pinMode(BUTTON_SELECT_PIN,INPUT_PULLUP);
+
+  //Initalize digital pins to turn sensor ON/OFF
+	// Initially keep the sensor OFF
+  for(int i=0;i<MAX_SOIL_SENSOR;i++){
+    pinMode(soilSensorPower[i],OUTPUT);
+    digitalWrite(soilSensorPower[i], LOW);
+  }
+
+  pinMode(A0, INPUT); //MOISTURE_SENSOR1_PIN
+  pinMode(A1, INPUT); //MOISTURE_SENSOR1_PIN
+  pinMode(A2, INPUT); //MOISTURE_SENSOR1_PIN
+
+  Serial.begin(9600);
+  menu[MAIN_LCD].print();
+
 }
 
 //Run repeatedly
 void loop() {
-  readButtons();
+  //Read buttons
+  debounce(digitalRead(BUTTON_DOWN_PIN), 0);
+  debounce(digitalRead(BUTTON_UP_PIN), 1);
+  debounce(digitalRead(BUTTON_SELECT_PIN), 2);
+
+  unsigned long currMillis = millis();
+  if(currMillis - prevMillis > soilSensorInterval){
+    prevMillis = currMillis;
+    readSoilSensor();
+  }
+  
+
 }
 
+
+//User Interface functions
+//Print different display
 void printMainLCD(void){
   lcd.clear();
   lcd.noCursor();
@@ -163,10 +240,10 @@ void printValveSensorLCD(void){
   lcd.print(" Valve2:"); lcd.print(cropList[currCrops[1]]); lcd.setCursor(0,3);
   lcd.print(" Valve3:"); lcd.print(cropList[currCrops[2]]); 
   
-  lcd.setCursor(16,1);
-  lcd.print(currSensorValue[0]); lcd.print(" %"); lcd.setCursor(16,2);
-  lcd.print(currSensorValue[1]); lcd.print(" %"); lcd.setCursor(16,3);
-  lcd.print(currSensorValue[2]); lcd.print(" %");
+  lcd.setCursor(17,1);
+  lcd.print(soilMoistureValue[0]); lcd.print(" %"); lcd.setCursor(17,2);
+  lcd.print(soilMoistureValue[1]); lcd.print(" %"); lcd.setCursor(17,3);
+  lcd.print(soilMoistureValue[2]); lcd.print(" %");
 
   currCursor[ROW] = 0;
   page = 0;
@@ -206,11 +283,27 @@ void printTimeLCD(void){
 
 }
 
-void readButtons(void){
-  debounce(digitalRead(BUTTON_DOWN_PIN), 0);
-  debounce(digitalRead(BUTTON_UP_PIN), 1);
-  debounce(digitalRead(BUTTON_SELECT_PIN), 2);
+void updateValueLCD(uint8_t type){
+  switch(type){
+    case 0:{
+      lcd.setCursor(18,1); lcd.print(' ');
+      lcd.setCursor(18,2); lcd.print(' ');
+      lcd.setCursor(18,3); lcd.print(' ');
+
+      lcd.setCursor(17,1);
+      lcd.print(soilMoistureValue[0]); lcd.setCursor(17,2);
+      lcd.print(soilMoistureValue[1]); lcd.setCursor(17,3);
+      lcd.print(soilMoistureValue[2]);
+    }
+    case 1:{
+      
+    }
+    case 2:{
+
+    }
+  }
 }
+//Read user input
 void selectButton(){
   switch(currDisplay){
     case MAIN_LCD:{
@@ -244,8 +337,6 @@ void selectButton(){
       break;}
   }
 }
-
-
 void debounce(int currState, uint8_t buttonType){
   if(currState != prevButtonState[buttonType]){
     debounceTimeArr[buttonType] = millis();
@@ -301,6 +392,25 @@ void updateCursor(int8_t direction){
   }
   lcd.setCursor(0,currCursor[ROW]);
   lcd.print('>');
+}
+
+//Read Sensors and Valve
+void readSoilSensor(void){
+  //Turn on sensors
+  digitalWrite(soilSensorPower[0],HIGH);
+  //Wait until power is stable
+  delay(200);  
+
+  //Read Soil Sensors;
+  soilMoistureValue[0] = analogRead(A0);
+  soilMoistureValue[0] = map(soilMoistureValue[0],AIR_VALUE, WATER_VALUE, 0, 100);
+  Serial.println(soilMoistureValue[0]);
+  //Turn off sensors
+  digitalWrite(soilSensorPower[0],LOW);
+  if(currDisplay == VALVE_SENSOR_LCD){
+    updateValueLCD(0);
+  }
+
 }
 
 //--------------------------Reference---------------------------
