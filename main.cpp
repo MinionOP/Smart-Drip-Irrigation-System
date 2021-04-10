@@ -90,7 +90,7 @@ uint8_t debounceDelay = 50;
 
 //----------------------------------------------------------------------------------------
 //------------------------------------------Crops-----------------------------------------
-char cropList[MAX_CROP][10] = {"Corn", "Bean", "Cotton", "Tomato", "Potato", "toAdd", "toAdd"};
+char cropList[MAX_CROP][10] = {"Corn", "Bean", "Cotton", "Tomato", "Potato", "Tobacco", "Papaya"};
 uint8_t currCrops[3] = {CORN,BEAN,COTTON}; //Valve 1-3
 uint8_t currSensorValue[3] = {0,0,0};
 
