@@ -1,23 +1,29 @@
 #include <Arduino.h>
 
 //External Libraries
-#include <LiquidCrystal_I2C.h> //Taken from: https://github.com/fdebrabander/Arduino-LiquidCrystal-I2C-library
+//If error after adding library on platformio. Try Ctrl+Shift+P -> Rebuild IntelliSense
+#include <LiquidCrystal_I2C.h>
+#include <Adafruit_Sensor.h>
+#include "DHT.h"
+#include "RTClib.h"
 
 
 //User Interface
-#define MAX_DISPLAY 5
+#define MAX_DISPLAY 6
 #define MAIN_LCD 0
 #define MENU_LCD 1
 #define VALVE_SENSOR_LCD 2
 #define CROP_LCD 3
 #define TIME_LCD 4 
+#define OPEN_CLOSE_VALVE 5
 
 //----------------------------
 //Irrigation 
 #define MAX_SOIL_SENSOR 3
 #define MAX_VALVE       3
-#define AIR_VALUE       583
-#define WATER_VALUE     320
+
+#define AIR_VALUE       590
+#define WATER_VALUE     314
 
 //Turn on valve if soil moisture falls below threshold
 #define CORN_THRESHOLD        80
@@ -44,6 +50,10 @@
 #define COLUMN  0
 #define ROW     1
 
+//Valve Closed/Open
+#define CLOSE 0
+#define OPEN 1
+
 
 //----------------------------
 //Digital pins for turning soil sensors ON/OFF
@@ -51,6 +61,9 @@
 #define SOIL_SENSOR2_POWER  12
 #define SOIL_SENSOR3_POWER  13
 
+//Temperature Sensor pin
+#define DHT_PIN 52
+#define DHTTYPE DHT11
 
 //Pin on arduino
 //User input
@@ -59,8 +72,6 @@ const uint8_t BUTTON_DOWN_PIN = 9;
 const uint8_t BUTTON_SELECT_PIN = 10;
 
 
-//Array to hold the digital pins for turning the soil sensors ON/OFF to conserve power
-const uint8_t soilSensorPower[MAX_SOIL_SENSOR] = {SOIL_SENSOR1_POWER, SOIL_SENSOR2_POWER, SOIL_SENSOR3_POWER};
 //MOISTURE_SENSOR1_PIN = A0
 
 
@@ -83,8 +94,8 @@ struct Menu{
   bool circular;      //Circular if cursor loop back to top of list
 };
 
-Menu menu[MAX_DISPLAY] = {  printMainLCD, 0, 3, menu[0].maxRows/4, (menu[0].maxRows%4)-1, false,         
-                            printMenuLCD, 0, 3, menu[1].maxRows/4, (menu[1].maxRows%4)-1, true,        
+Menu menu[MAX_DISPLAY] = {  printMainLCD, 0, 4, menu[0].maxRows/4, (menu[0].maxRows%4)-1, false,         
+                            printMenuLCD, 0, 4, menu[1].maxRows/4, (menu[1].maxRows%4)-1, true,        
                             printValveSensorLCD, 0, 4, menu[2].maxRows/4, (menu[2].maxRows%4)-1, true,
                             printCropLCD, 2, 10, menu[3].maxRows/4, (menu[3].maxRows%4)-1, false,
                             printTimeLCD, 0, 4, menu[4].maxRows/4, (menu[4].maxRows%4)-1, false
@@ -117,7 +128,7 @@ uint8_t currValve = 0;
 
 //Temporary values used for testing the display
 uint8_t hour = 9; uint8_t min=50;
-uint8_t temperature = 85;
+int temperature = 0;
 
 //Account for debounce
 void debounce(int currState, uint8_t buttonType);
@@ -126,26 +137,51 @@ int buttonState[3] = {HIGH, HIGH, HIGH};
 int prevButtonState[3] = {HIGH, HIGH, HIGH};
 uint8_t debounceDelay = 50;
 
-//------------------------------Scheduling and Time----------------------------------------
+//------------------------------Scheduling, Time, and Temperature----------------------------------------
+//Will run every x seconds
 //In milliseconds
-//Soil sensor will run every x seconds
-unsigned long soilSensorInterval = 1000;    
-unsigned long prevMillis = 0;
+unsigned long soilSensorInterval = 3000;  
+unsigned long tempSensorInterval = 10000;  
+unsigned long rtcInterval = 5000;
 
+unsigned long currMillis;
+
+unsigned long soilPrevMillis = 0;
+unsigned long rtcPrevMillis = 0;
+
+//Digital pin used for temperature and type
+DHT dht(DHT_PIN, DHTTYPE);
+
+//Create rtc
+RTC_DS3231 rtc;
 
 //----------------------------------------------------------------------------------------
 //---------------------------------------Irrigation---------------------------------------
+struct Valve{
+  bool valveStatus;         //Check valve current status (Opened or closed)
+  uint8_t currCrop;         //Current crop set for valve
+  int soilMoistureValue;    //Moisture sensor value
+  uint8_t soilSensorPower;  //Moisture sensor power (Save power)
+};
+
+Valve valve[MAX_VALVE] = {CLOSE, CORN, 0, SOIL_SENSOR1_POWER,
+                          CLOSE, BEAN, 0, SOIL_SENSOR2_POWER,
+                          CLOSE, COTTON, 0, SOIL_SENSOR3_POWER
+                          };
+
 char cropList[MAX_CROP][10] = {"Corn", "Bean", "Cotton", "Tomato", "Potato", "Tobacco", "Papaya"};
-uint8_t currCrops[MAX_VALVE] = {CORN,BEAN,COTTON}; //Valve 1-3
-int soilMoistureValue[MAX_SOIL_SENSOR] = {0,0,0};
-uint8_t threshold[MAX_SOIL_SENSOR] = {0,0,0};
 
 void readSoilSensor(void);
 void readTemperatureSensor(void);
 void readValve(void);
 
-//----------------------------------------------------------------------------------------
+//Helper functions
+//pos = current valve. type(0) = 'C' or 'O'. type(1) = 'Close' or 'Open'
+void printValveStatusHelper(uint8_t pos, bool type);
+//print current time/date onto lcd
+void printTimeHelper(DateTime&);
 
+//----------------------------------------------------------------------------------------
 LiquidCrystal_I2C lcd(0x27,   //lcd_addr. Can be found by running an I2C scanner
                         20,   //Number of columns
                         4);   //Number of rows
@@ -162,37 +198,73 @@ void setup() {
   pinMode(BUTTON_SELECT_PIN,INPUT_PULLUP);
 
   //Initalize digital pins to turn sensor ON/OFF
-	// Initially keep the sensor OFF
+	//Initially keep the sensors OFF
   for(int i=0;i<MAX_SOIL_SENSOR;i++){
-    pinMode(soilSensorPower[i],OUTPUT);
-    digitalWrite(soilSensorPower[i], LOW);
+    pinMode(valve[i].soilSensorPower,OUTPUT);
+    digitalWrite(valve[i].soilSensorPower, LOW);
   }
 
-  pinMode(A0, INPUT); //MOISTURE_SENSOR1_PIN
-  pinMode(A1, INPUT); //MOISTURE_SENSOR1_PIN
-  pinMode(A2, INPUT); //MOISTURE_SENSOR1_PIN
-
+  //Moisture sensor pins
+  pinMode(A0, INPUT); 
+  pinMode(A1, INPUT); 
+  pinMode(A2, INPUT); 
+  
   Serial.begin(9600);
-  menu[MAIN_LCD].print();
 
+  //Initalize temperature sensor
+  dht.begin();
+  delay(300);
+
+
+  if(!rtc.begin()){
+    Serial.println("Error. Couldn't find RTC");
+  }
+
+  //Readjust time after shut down
+  if (rtc.lostPower()) {
+    Serial.println("RTC lost power, setting the time");
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  }
+
+  //Let everything settle down
+  delay(1000);
+
+  menu[MAIN_LCD].print();
 }
+
 
 //Run repeatedly
 void loop() {
+  DateTime now = rtc.now();
   //Read buttons
   debounce(digitalRead(BUTTON_DOWN_PIN), 0);
   debounce(digitalRead(BUTTON_UP_PIN), 1);
   debounce(digitalRead(BUTTON_SELECT_PIN), 2);
 
-  unsigned long currMillis = millis();
-  if(currMillis - prevMillis > soilSensorInterval){
-    prevMillis = currMillis;
+  currMillis = millis();
+  if(currMillis - soilPrevMillis > soilSensorInterval){
+    soilPrevMillis = currMillis;
     readSoilSensor();
+    if(currDisplay == MAIN_LCD){
+      readTemperatureSensor();
+    }
   }
-  
 
+
+  currMillis = millis();
+  if(currMillis - rtcPrevMillis > rtcInterval){
+    rtcPrevMillis = currMillis;
+    if(currDisplay == MAIN_LCD){
+      if(hour>9){
+        lcd.setCursor(5,1);
+        }
+      else{
+        lcd.setCursor(6,1);
+        }
+      printTimeHelper(now);
+    }
+  }
 }
-
 
 //User Interface functions
 //Print different display
@@ -203,7 +275,9 @@ void printMainLCD(void){
   lcd.print("Smart Irrigation"); lcd.setCursor(0,1);
   lcd.print("Time:"); lcd.setCursor(0,2);
   lcd.print("Current Temp:"); lcd.setCursor(0,3);
-  
+  lcd.print("V1:");printValveStatusHelper(0,0);lcd.setCursor(7,3); //Change later when valve are use
+  lcd.print("V2:");printValveStatusHelper(1,0);lcd.setCursor(14,3);
+  lcd.print("V3:");printValveStatusHelper(2,0);
 
   //Update time on LCD
   if(hour>9){
@@ -211,19 +285,19 @@ void printMainLCD(void){
   else{
       lcd.setCursor(6,1);}
   
-  lcd.print(hour); lcd.print(":"); lcd.print(min);
 
   //Update temperature on LCD
   lcd.setCursor(14,2);
-  lcd.print(temperature);
+  lcd.print(temperature); lcd.print("F");
 
   currCursor[ROW] = 0;
   currDisplay = MAIN_LCD;
 }
 void printMenuLCD(void){
   lcd.clear();
-  lcd.print(">Valve/Sensors"); lcd.setCursor(0,1);
-  lcd.print(" Set Time"); lcd.setCursor(0,2);
+  lcd.print(">Sensor Setting"); lcd.setCursor(0,1);
+  lcd.print(" Open/Close Valve"); lcd.setCursor(0,2);
+  lcd.print(" Set Schedule"); lcd.setCursor(0,3);
   lcd.print(" Go to Main Display");
 
   currCursor[ROW] = 0;
@@ -236,14 +310,14 @@ void printValveSensorLCD(void){
   lcd.print("Sensor");  
   
   lcd.setCursor(0,1);
-  lcd.print(" Valve1:"); lcd.print(cropList[currCrops[0]]); lcd.setCursor(0,2);
-  lcd.print(" Valve2:"); lcd.print(cropList[currCrops[1]]); lcd.setCursor(0,3);
-  lcd.print(" Valve3:"); lcd.print(cropList[currCrops[2]]); 
+  lcd.print(" Valve1:"); lcd.print(cropList[valve[0].currCrop]); lcd.setCursor(0,2);
+  lcd.print(" Valve2:"); lcd.print(cropList[valve[1].currCrop]); lcd.setCursor(0,3);
+  lcd.print(" Valve3:"); lcd.print(cropList[valve[2].currCrop]); 
   
   lcd.setCursor(17,1);
-  lcd.print(soilMoistureValue[0]); lcd.print(" %"); lcd.setCursor(17,2);
-  lcd.print(soilMoistureValue[1]); lcd.print(" %"); lcd.setCursor(17,3);
-  lcd.print(soilMoistureValue[2]); lcd.print(" %");
+  lcd.print(valve[0].soilMoistureValue); lcd.print(" %"); lcd.setCursor(17,2);
+  lcd.print(valve[1].soilMoistureValue); lcd.print(" %"); lcd.setCursor(17,3);
+  lcd.print(valve[2].soilMoistureValue); lcd.print(" %");
 
   currCursor[ROW] = 0;
   page = 0;
@@ -253,7 +327,7 @@ void printCropLCD(void){
   lcd.clear();
   switch(page){
     case 0:{
-      lcd.print("Current Crop:"); lcd.print(cropList[currCrops[currValve]]); lcd.setCursor(0,1);
+      lcd.print("Current Crop:"); lcd.print(cropList[valve[currValve].currCrop]); lcd.setCursor(0,1);
       lcd.print("Select:"); lcd.setCursor(1,2);
       lcd.print(cropList[0]); lcd.setCursor(1,3);
       lcd.print(cropList[1]);
@@ -283,6 +357,7 @@ void printTimeLCD(void){
 
 }
 
+
 void updateValueLCD(uint8_t type){
   switch(type){
     case 0:{
@@ -291,9 +366,9 @@ void updateValueLCD(uint8_t type){
       lcd.setCursor(18,3); lcd.print(' ');
 
       lcd.setCursor(17,1);
-      lcd.print(soilMoistureValue[0]); lcd.setCursor(17,2);
-      lcd.print(soilMoistureValue[1]); lcd.setCursor(17,3);
-      lcd.print(soilMoistureValue[2]);
+      lcd.print(valve[0].soilMoistureValue); lcd.setCursor(17,2);
+      lcd.print(valve[1].soilMoistureValue); lcd.setCursor(17,3);
+      lcd.print(valve[2].soilMoistureValue);
     }
     case 1:{
 
@@ -303,40 +378,36 @@ void updateValueLCD(uint8_t type){
     }
   }
 }
-//Read user input
-void selectButton(){
-  switch(currDisplay){
-    case MAIN_LCD:{
-      printMenuLCD();
-      break;}
-    case MENU_LCD:{
-      if(currCursor[ROW] == 0){printValveSensorLCD();}
-      else if(currCursor[ROW] == 1){printTimeLCD();}
-      else if(currCursor[ROW] == 2){printMainLCD();}
-      break;}
-    case VALVE_SENSOR_LCD:{
-      if(currCursor[ROW] == 0){
-        printMenuLCD();
-      }
-      else{
-        currValve = currCursor[ROW] - 1;
-        page = 0;        
-        printCropLCD();
-      }
-      break;}
-    case CROP_LCD:{
-      if(page == menu[currDisplay].maxPage && currCursor[ROW] == menu[currDisplay].lastPos){
-        printValveSensorLCD(); 
-        break;
-      }
-      if(page == 0){currCrops[currValve] = currCursor[ROW]-2;}
-      //Increment by 4 after page 1
-      else if(page == 1){currCrops[currValve] = currCursor[ROW]+2;}
-      else if(page == 2){currCrops[currValve] = currCursor[ROW]+6;}
-      printValveSensorLCD();
-      break;}
+//Read Sensors
+void readSoilSensor(void){
+  //Turn on sensors
+  digitalWrite(valve[0].soilSensorPower,HIGH);
+  //Wait until power is stable
+  delay(200);  
+
+  //Read Soil Sensors;
+  valve[0].soilMoistureValue = analogRead(A0);
+  valve[0].soilMoistureValue = map(valve[0].soilMoistureValue,AIR_VALUE, WATER_VALUE, 0, 100);
+  //Serial.println(soilMoistureValue[0]);
+  //Turn off sensors
+  digitalWrite(valve[0].soilSensorPower,LOW);
+  if(currDisplay == VALVE_SENSOR_LCD){
+    updateValueLCD(0);
+  }
+
+}
+void readTemperatureSensor(void){
+  temperature = dht.readTemperature(true);
+  if (isnan(temperature)) {
+    Serial.println(F("Failed to read from DHT sensor!"));
+  }
+  //Serial.println(temperature);
+  if(currDisplay == MAIN_LCD){
+    lcd.setCursor(14,2);
+    lcd.print(temperature); lcd.print("F");
   }
 }
+//Read user input
 void debounce(int currState, uint8_t buttonType){
   if(currState != prevButtonState[buttonType]){
     debounceTimeArr[buttonType] = millis();
@@ -393,38 +464,112 @@ void updateCursor(int8_t direction){
   lcd.setCursor(0,currCursor[ROW]);
   lcd.print('>');
 }
-
-//Read Sensors and Valve
-void readSoilSensor(void){
-  //Turn on sensors
-  digitalWrite(soilSensorPower[0],HIGH);
-  //Wait until power is stable
-  delay(200);  
-
-  //Read Soil Sensors;
-  soilMoistureValue[0] = analogRead(A0);
-  soilMoistureValue[0] = map(soilMoistureValue[0],AIR_VALUE, WATER_VALUE, 0, 100);
-  Serial.println(soilMoistureValue[0]);
-  //Turn off sensors
-  digitalWrite(soilSensorPower[0],LOW);
-  if(currDisplay == VALVE_SENSOR_LCD){
-    updateValueLCD(0);
+void selectButton(){
+  switch(currDisplay){
+    case MAIN_LCD:{
+      printMenuLCD();
+      break;}
+    case MENU_LCD:{
+      if(currCursor[ROW] == 0){printValveSensorLCD();}
+      else if(currCursor[ROW] == 1){}
+      else if(currCursor[ROW] == 2){printTimeLCD();}
+      else if(currCursor[ROW] == 3){printMainLCD();}
+      break;}
+    case VALVE_SENSOR_LCD:{
+      if(currCursor[ROW] == 0){
+        printMenuLCD();
+      }
+      else{
+        currValve = currCursor[ROW] - 1;
+        page = 0;        
+        printCropLCD();
+      }
+      break;}
+    case CROP_LCD:{
+      if(page == menu[currDisplay].maxPage && currCursor[ROW] == menu[currDisplay].lastPos){
+        printValveSensorLCD(); 
+        break;
+      }
+      if(page == 0){valve[currValve].currCrop = currCursor[ROW]-2;}
+      //Increment by 4 after page 1
+      else if(page == 1){valve[currValve].currCrop = currCursor[ROW]+2;}
+      else if(page == 2){valve[currValve].currCrop = currCursor[ROW]+6;}
+      printValveSensorLCD();
+      break;}
   }
-
 }
+
+
+//Print current status of valve(Opened or closed) onto LCD
+void printValveStatusHelper(uint8_t pos, bool type){
+  if(!type){
+    if(valve[pos].valveStatus == CLOSE){
+      lcd.print("C");
+    }
+    else{
+      lcd.print("O");
+    }
+  }
+  else{
+    if(valve[pos].valveStatus == CLOSE){
+      lcd.print("Close");
+    }
+    else{
+      lcd.print("Open");
+    }
+  }
+}
+//Print current date/time onto LCD
+void printTimeHelper(DateTime& now){
+  lcd.print(now.hour(), DEC);
+  lcd.print(':');
+  lcd.print(now.minute(), DEC);
+  if(now.isPM()){
+    lcd.print("pm");
+  }
+  else{
+    lcd.print("am");
+  }
+}
+
+//Credits
+/*
+This application uses Open Source components. You can find the source code of their 
+open source projects along with license information below. We acknowledge and are 
+grateful to these developers for their contributions to open source.
+
+
+ArduinomLiquidCrystal I2C https://github.com/fdebrabander/Arduino-LiquidCrystal-I2C-library
+
+Adafruit Unified Sensor https://github.com/adafruit/Adafruit_Sensor
+Apache License Version 2.0, January 2004 https://github.com/adafruit/Adafruit_Sensor/blob/master/LICENSE.txt
+
+DHT sensor https://github.com/adafruit/DHT-sensor-library
+Copyright (c) 2020 Adafruit Industries
+License (MIT) https://github.com/adafruit/DHT-sensor-library/blob/master/license.txt
+
+RTClib https://github.com/adafruit/RTClib
+Copyright (c) 2019 Adafruit Industries
+License (MIT) https://github.com/adafruit/RTClib/blob/master/license.txt
+
+*/
+
+
 
 //--------------------------Reference---------------------------
 /*
 //----------MainLCD-------------
-//Smart Irrigation
-//Time: 5:20 pm
-//Current Temp: 85 F
+//Valve
+//Time: 5:20pm
+//Current Temp: 85F
+//V1:C   V2:O   V3:C
 //------------------------------
 
 //----------MenuLCD-------------
-// Valve/Sensors
-// Adjust Current Time
-// Go back to main display
+// Sensor Setting
+// Open/Close Valve
+// Set Schedule
+// Go to Main Display
 //------------------------------
 
 //--------ValveSensorLCD--------
