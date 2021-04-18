@@ -4,8 +4,9 @@ LiquidCrystal_I2C taken from https://github.com/fdebrabander/Arduino-LiquidCryst
 Check List:<br/>
 Check.        Create user interface and accept user inputs using three buttons. <br/>
 Check.        Read 1 moisture sensors and update it on LCD <br/>
-In progress.  Read temperature sensors and update it on LCD <br/>
+Check.        Read temperature sensors and update it on LCD <br/>
+Check.        Display current time on LCD <br/>
+In Progress.  Read status of valve and update it on LCD and open and close valve from user input. Using led on relay as substitute for valve <br/>
+
 To Do:<br/>   
-Read status of valve and update it on LCD <br/>
 Open and close valve from moisture sensors <br/>
-Open and close valve from user input <br/>
