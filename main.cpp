@@ -559,7 +559,7 @@ License (MIT) https://github.com/adafruit/RTClib/blob/master/license.txt
 //--------------------------Reference---------------------------
 /*
 //----------MainLCD-------------
-//Valve
+//Smart Irrigation
 //Time: 5:20pm
 //Current Temp: 85F
 //V1:C   V2:O   V3:C
