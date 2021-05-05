@@ -182,9 +182,9 @@ void UserInterface::printValveSensorLCD(void){
 
     //valve[2].soilMoistureValue
     lcd.setCursor(17,1);
-    lcd.print(database.getSoilSensor(0)); lcd.print(" %"); lcd.setCursor(17,2);
-    lcd.print(database.getSoilSensor(1)); lcd.print(" %"); lcd.setCursor(17,3);
-    lcd.print(database.getSoilSensor(2)); lcd.print(" %");
+    lcd.print(database.getSoilSensor(0)); lcd.print("%"); lcd.setCursor(17,2);
+    lcd.print(database.getSoilSensor(1)); lcd.print("%"); lcd.setCursor(17,3);
+    lcd.print(database.getSoilSensor(2)); lcd.print("%");
 
     cursor[ROW] = 0;
     page = 0;
@@ -307,10 +307,21 @@ void UserInterface::printScheduleLCD(void){
     lcd.clear();
     switch(page){
     case 0:{
-        lcd.print(">M"); lcd.setCursor(0, 1);
+        lcd.print(" M"); lcd.setCursor(0, 1);
         lcd.print(" T"); lcd.setCursor(0, 2);
         lcd.print(" W"); lcd.setCursor(0, 3);
         lcd.print(" Th");
+        if(cursor[ROW] != 0){
+            lcd.setCursor(0,0);
+            lcd.print('>');
+            printScheduleHelper(0,0,3,4,1);
+
+            lcd.setCursor(4, 0);
+            printDayHelper(0);
+            lcd.print(':');
+            lcd.setCursor(18,3); lcd.write(0);
+        }
+       
         cursor[ROW] = 0;
         break;
     }
@@ -319,11 +330,15 @@ void UserInterface::printScheduleLCD(void){
         lcd.print(" S"); lcd.setCursor(0, 2);
         lcd.print(" Su"); lcd.setCursor(0, 3);
         lcd.print(" Change time");
+
+        lcd.setCursor(18,3); lcd.write(0);
+
         cursor[ROW] = 0;
         break;
     }
     case 2:{
         lcd.print(" Go back");
+        lcd.setCursor(18,0);lcd.write(1);
         cursor[ROW] = 0;
         break;
     }
@@ -343,7 +358,6 @@ void UserInterface::printDisplay(uint8_t display){
         case SCHEDULE_LCD:{printScheduleLCD(); break;}
     }
 }
-
 
 void UserInterface::printValveStatusHelper(uint8_t status, bool printType){
     if(!printType){
@@ -379,12 +393,39 @@ void UserInterface::printTimeHelper(uint8_t hour, uint8_t minute, bool isPM, uin
         lcd.print("am ");
     }
 }
-void UserInterface::printSoilSensorHelper(uint8_t num, uint8_t col, uint8_t row){
-    // lcd.setCursor(col+1,row); lcd.print(' ');
-    // lcd.setCursor(col,row);
-    // lcd.print(valve[0].soilMoistureValue);
+
+void UserInterface::printScheduleHelper(uint8_t day, uint8_t startNum, uint8_t endNum, uint8_t col, uint8_t row){
+    if(endNum - startNum > 3 || endNum > 3){
+        return;
+    }
+    uint8_t buffer[7];
+    for (int i = startNum; i < endNum; i++)
+    {
+        schedule.getOneScheduleInfo(day, i, buffer);
+        if (buffer[6] == true)
+        {
+            uint8_t temp = (buffer[0] < 9) ? col + 1 : col;
+            printTimeHelper(buffer[0], buffer[1], buffer[2], temp, row);
+
+            lcd.setCursor(11, row);
+            lcd.print('-');
+            printTimeHelper(buffer[3], buffer[4], buffer[5], col + 8, row);
+            row+=1;
+        }
+    }
 }
 
+void UserInterface::printDayHelper(uint8_t num){
+    switch(num){
+        case 0:{lcd.print("Monday");break;}
+        case 1:{lcd.print("Tuesday");break;}
+        case 2:{lcd.print("Wednesday");break;}
+        case 3:{lcd.print("Thursday");break;}
+        case 4:{lcd.print("Friday");break;}
+        case 5:{lcd.print("Saturday");break;}
+        case 6:{lcd.print("Sunday");break;}
+    }
+}
 void UserInterface::printCropHelper(uint8_t num){
     switch(num){
         case 0:{lcd.print("Corn"); break;}
@@ -441,7 +482,14 @@ void UserInterface::createCustomSymbols(uint8_t set){
 void UserInterface::blinkCursor(void){
     blinkStatus = !blinkStatus;
     lcd.setCursor(cursor[COLUMN],3);
-    (blinkStatus?lcd.print("   "):lcd.print("---"));
+    if(currentDisplay == TIME_LCD && cursor[COLUMN] == 13){
+        (blinkStatus?lcd.print("  "):lcd.print("--"));
+    }
+    else{
+        (blinkStatus?lcd.print("   "):lcd.print("---"));
+    }
+
+    
 }
 void UserInterface::idle(void){
     if(skip == 1){
@@ -531,6 +579,25 @@ void UserInterface::updateCursor(int8_t direction){
     }
     lcd.setCursor(0,cursor[ROW]);
     lcd.print('>');
+    if(currentDisplay == SCHEDULE_LCD){
+
+        if(!(cursor[ROW] == menu[currentDisplay].lastPosition && page == menu[currentDisplay].totalPages)){
+            lcd.setCursor(4,0); lcd.print("               ");
+            lcd.setCursor(4,1); lcd.print("               ");
+            lcd.setCursor(4,2); lcd.print("               ");
+            if(page == 0){
+                lcd.setCursor(4,3); lcd.print("               ");
+            }
+
+            if (!(cursor[ROW] == 3 && page == 1))
+            {
+                lcd.setCursor(4, 0);
+                printDayHelper(cursor[ROW] + page * 4);
+                lcd.print(':');
+                printScheduleHelper(cursor[ROW] + page * 4,0,2,4,1);
+            }
+        }
+    }
   }
   else{
     if(currentDisplay == THRESHOLD_NUM_LCD){
@@ -578,6 +645,12 @@ void UserInterface::updateCursor(int8_t direction){
         lcd.setCursor(cursor[COLUMN],3);
         lcd.print("---");
       }
+      else if(cursor[COLUMN] == 11 && direction == 1){
+        lcd.print("  ");
+        cursor[COLUMN] = menu[currentDisplay].lastPosition;
+        lcd.setCursor(cursor[COLUMN],3);
+        lcd.print("--");
+      }
       else if((cursor[COLUMN] == 15 && direction == -1) || (cursor[COLUMN] == menu[currentDisplay].lastPosition-3 && direction == 1)){
         lcd.print(" ");
         cursor[COLUMN] = menu[currentDisplay].lastPosition;
@@ -596,7 +669,7 @@ void UserInterface::updateCursor(int8_t direction){
 }
 void UserInterface::updateBigNumber(int8_t direction){
     uint8_t tempPos = 0;
-    if (currentDisplay == THRESHOLD_NUM_LCD)
+    if (currentDisplay == THRESHOLD_NUM_LCD || currentDisplay == TIME_LCD)
     {
         tempPos = (cursor[COLUMN] == menu[currentDisplay].initialPosition) ? 0 : 1;
         if (!((tempArray[tempPos] == 0 && direction == -1) || (tempArray[tempPos] == 9 && direction == 1)))
@@ -688,7 +761,7 @@ void UserInterface::selectButton(void)
             database.setCropThreshold(4, 80);
             database.setCropThreshold(5, 80);
             database.setCropThreshold(6, 80);
-
+            printCropThresholdLCD();
             break;
         }
         if (page == 0)
