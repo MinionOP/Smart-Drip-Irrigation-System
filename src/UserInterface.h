@@ -31,49 +31,51 @@
 
 #include "Database.h"
 #include "CustomCharacter.h"
-
+#include "Schedule.h"
 
 enum Display{MAIN_LCD = 0,MENU_LCD,VALVE_SENSOR_LCD,CROP_LCD,TIME_LCD,VALVE_STATUS_LCD,CROP_THRESHOLD_LCD,THRESHOLD_NUM_LCD,SCHEDULE_LCD,DISPLAY_SIZE};
 enum CursorPosition{COLUMN = 0,ROW,MODE,BLINK};
-
 enum Type{SOIL,VALVE,UP,DOWN,SELECT,TIME,TEMPERATURE};
 
 
-struct MenuInfo{
-    uint8_t initialPosition; //Row cursor will begin
-    uint8_t totalRows;       //Max/Total number of rows
-    uint8_t totalPages;      //Total Page = maxRows/4
-    uint8_t lastPosition;    //Last Position = (maxRows % 4)-1
-    bool isCircular;         //Circular if cursor loop back to top of list
-    bool cursorType;         //Cursor Type '>' = 0, Cursor Type '_' = 1
-};
 
 class UserInterface
 {
 public:
-    UserInterface(uint8_t lcd_addr, uint8_t lcd_cols, uint8_t lcd_rows);
+    Database database;
 
+    UserInterface(uint8_t lcd_addr, uint8_t lcd_cols, uint8_t lcd_rows);
     void begin(void);
     void update(uint8_t type);
     void printDisplay(uint8_t display);
-    
-    uint8_t getCursorPosition(uint8_t type);
-    uint8_t getCurrentDisplay(void);
-    bool isBlinkEnable(void);
-    bool isIdle(void);
 
+    bool isBlinkEnable(void);
     void blinkCursor(void);
+
+    bool isIdle(void);
     void idle(void);
     void wakeup(void);
 
-    Database database;
+    uint8_t getCursorPosition(uint8_t type);
+    uint8_t getCurrentDisplay(void);
 
 private:
+    struct MenuInfo
+    {
+        uint8_t initialPosition; //Row cursor will begin
+        uint8_t totalRows;       //Max/Total number of rows
+        uint8_t totalPages;      //Total Page = maxRows/4
+        uint8_t lastPosition;    //Last Position = (maxRows % 4)-1
+        bool isCircular;         //Circular if cursor loop back to top of list
+        bool cursorType;         //Cursor Type '>' = 0, Cursor Type '_' = 1
+    };
+
     MenuInfo menu[DISPLAY_SIZE];
     CustomCharacters customCharacter;
+    Schedule schedule;
     LiquidCrystal_I2C lcd;
 
-    uint8_t tempArray[2] = {0};
+    uint8_t tempArray[3] = {0};
     uint8_t page;
     uint8_t cursor[4] = {0};
     uint8_t currentDisplay;
@@ -83,8 +85,11 @@ private:
     bool skip = 1;
 
     void updateCursor(int8_t direction);
-    void selectButton(void);
     void updateBigNumber(int8_t direction);
+    void printBigNum(uint8_t num, uint8_t col, uint8_t row);
+    void selectButton(void);
+
+    void createCustomSymbols(uint8_t set);
 
     void AddMenuInfo(uint8_t display, uint8_t _initialPosition, uint8_t _totalRows, uint8_t _totalPages, uint8_t _lastPosition, bool _isCircular, bool cursorType);
     void printMainLCD(void);
@@ -98,15 +103,17 @@ private:
     void printScheduleLCD(void);
     void resetLCDValue(void);
 
-    void printBigNum(uint8_t num, uint8_t col, uint8_t row);
-    void createCustomSymbols(uint8_t set);
-
     //Status = 0 if close
     void printValveStatusHelper(uint8_t status, bool printType);
     //Print current date/time onto LCD
     void printTimeHelper(uint8_t hour, uint8_t minute, bool isPM, uint8_t col, uint8_t row);
-    void printSoilSensorHelper(uint8_t num, uint8_t col, uint8_t row);
     void printCropHelper(uint8_t num);
+    void printDayHelper(uint8_t num);
+    void printScheduleHelper(uint8_t day, uint8_t startNum, uint8_t endNum, uint8_t col, uint8_t row);
+
+
+
+
 
 };
 
