@@ -19,7 +19,7 @@
 #define WATER_VALUE 305
 
 #define SOIL_SENSOR_INTERVAL 10000
-#define TEMPERATURE_INTERVAL 300
+#define TEMPERATURE_INTERVAL 10000
 #define RTC_INTERVAL 5000
 #define IDLE_INTERVAL 100000
 
@@ -82,28 +82,6 @@ DHT dht(DHT_PIN, DHTTYPE);
 //Create rtc
 RTC_DS3231 rtc;
 
-// struct Schedule
-// {
-//   uint8_t startHr;
-//   uint8_t startMin;
-//   bool startPM;
-//   uint8_t endHr;
-//   uint8_t endMin;
-//   bool endPM;
-// };
-enum day
-{
-  MONDAY = 0,
-  TUESDAY,
-  WEDNESDAY,
-  THURSDAY,
-  FRIDAY,
-  SATURDAY,
-  SUNDAY,
-  NUM_DAY
-};
-
-// Schedule schedule[NUM_DAY][3] = {{0}, {0}, {0}, {0}, {0}, {0}, {0}};
 
 void readSoilSensor(void);
 void readTemperatureSensor(void);
@@ -135,11 +113,6 @@ void setup()
 
   pinMode(SOIL_SENSOR1_POWER_PIN, OUTPUT);
   digitalWrite(SOIL_SENSOR1_POWER_PIN, LOW);
-
-  //Moisture sensor pins
-  // pinMode(A0, INPUT);
-  // pinMode(A1, INPUT);
-  // pinMode(A2, INPUT);
 
   Serial.begin(9600);
 
@@ -227,7 +200,9 @@ void readSoilSensor(void)
   //Wait until power is stable
   delay(150);
   //Read Soil Sensors;
-  //Serial.println(valve[0].soilMoistureValue);
+  //int temp = analogRead(A0);
+  //Serial.println(temp);
+  //interface.database.setSoilSensor(0, map(temp, AIR_VALUE, WATER_VALUE, 0, 100));
   interface.database.setSoilSensor(0, map(analogRead(A0), AIR_VALUE, WATER_VALUE, 0, 100));
   //Turn off sensors
   digitalWrite(SOIL_SENSOR1_POWER_PIN, LOW);
