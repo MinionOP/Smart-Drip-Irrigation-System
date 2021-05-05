@@ -62,7 +62,8 @@ public:
 private:
     uint8_t valve[3] = {0};
     uint8_t crop[3] = {0};
-    bool soil[3] = {0};
+    int soil[3] = {0};
+    
     uint8_t cropThreshold[MAX_CROP];
     uint8_t currentValve = 0;
     uint8_t currentSoil = 0;
