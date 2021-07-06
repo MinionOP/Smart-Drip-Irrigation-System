@@ -1,40 +1,37 @@
-#include "Database.h"
-
+#include "database.h"
 
 
 Database::Database(){
     for(int i=0;i<MAX_CROP;i++){
-        cropThreshold[i] = 80;
+        cropThresholdArr[i] = 80;
     }
 }
     
 
-bool Database::getValveStatus(uint8_t num){
-    return valve[num];
+bool Database::valveStatus(uint8_t _valveNum){
+    return valveArr[_valveNum];
 }
 
-uint8_t Database::getCrop(uint8_t num){
-    return crop[num];
+uint8_t Database::crop(uint8_t _cropNum){
+    return cropArr[_cropNum];
 }
 
-uint8_t Database::getSoilSensor(uint8_t num){
-    return soil[num];
+uint8_t Database::soilSensor(uint8_t _soilNum){
+    return soilArr[_soilNum];
 }
-uint8_t Database::getTemperature(){
-    return temperature;
+uint8_t Database::temperature(){
+    return temp;
 }
-uint8_t Database::getCropThreshold(uint8_t num){
-    return cropThreshold[num];
+uint8_t Database::cropThreshold(uint8_t crop){
+    return cropThresholdArr[crop];
 }
-uint8_t Database::getCurrentCrop(void){
-    return currentCrop;
+uint8_t Database::getSelectedCropNum(void){
+    return selectedCropNum;
 }
-uint8_t Database::getCurrentValve(void){
-    return currentValve;
+uint8_t Database::getSelectedValveNum(void){
+    return selectedValveNum;
 }
-uint8_t Database::getCurrentSoil(void){
-    return currentSoil;
-}
+
 uint8_t Database::getHour(void){
     return hour;
 }
@@ -45,27 +42,27 @@ bool Database::getPM(void){
     return PM;
 }
 
-void Database::setValveStatus(uint8_t num, bool status){
-    valve[num] = status;
+void Database::setValveStatus(uint8_t _valveNum, bool status){
+    valveArr[_valveNum] = status;
 }
-void Database::setSoilSensor(uint8_t _num, uint8_t _soil){
-   soil[_num] = _soil;
+void Database::setSoilSensor(uint8_t _soilNum, uint8_t _soil){
+   soilArr[_soilNum] = _soil;
 }
 void Database::setCrop(uint8_t _valveNum, uint8_t _crop){
-    crop[_valveNum] = _crop;
+    cropArr[_valveNum] = _crop;
 }
 
 void Database::setTemperature(uint8_t _temp){
-    temperature = _temp;
+    temp = _temp;
 }
 void Database::setCropThreshold(uint8_t _crop, uint8_t _threshold){
-    cropThreshold[_crop] = _threshold;
+    cropThresholdArr[_crop] = _threshold;
 }
-void Database::setCurrentCrop(uint8_t _currentCrop){
-    currentCrop = _currentCrop;
+void Database::setSelectedCropNum(uint8_t _selectedCropNum){
+    selectedCropNum = _selectedCropNum;
 }
-void Database::setCurrentValve(uint8_t _currentValve){
-    currentValve = _currentValve;
+void Database::setSelectedValveNum(uint8_t _selectedValveNum){
+    selectedValveNum = _selectedValveNum;
 }
 
 void Database::setTime(uint8_t _hour, uint8_t _minute, bool _isPM){
