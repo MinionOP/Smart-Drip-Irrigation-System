@@ -3,18 +3,46 @@
 
 #include <Arduino.h>
 
+enum Day
+{
+    MONDAY = 0,
+    TUESDAY,
+    WEDNESDAY,
+    THURSDAY,
+    FRIDAY,
+    SATURDAY,
+    SUNDAY,
+    NUM_DAY
+};
+enum Time
+{
+    AM = 0,
+    PM = 1
+};
 
-enum Day{MONDAY = 0, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY, NUM_DAY};
-enum Time{HOUR = 0, MINUTE = 1, PM = 2};
-
-class Schedule{
+class Schedule
+{
 public:
-    
     Schedule();
-    uint8_t numOfSchedule(uint8_t day);
-    uint8_t numOfTotalSchedule(void);
-    void addSchedule(uint8_t day, uint8_t num, uint8_t _startHr, uint8_t _startMin, uint8_t _startPM, uint8_t _endHr, uint8_t _endMin, uint8_t _endPM);
-    uint8_t* getOneScheduleInfo(uint8_t day, uint8_t num, uint8_t buffer[7]);
+    bool update(uint8_t day, uint8_t num, uint8_t _startHr, uint8_t _startMin, bool _startPM, uint8_t _endHr, uint8_t _endMin, bool _endPM);
+    bool disable(uint8_t day, uint8_t num);
+    bool clear(uint8_t day, uint8_t num);
+    bool verify(uint8_t hour1, uint8_t minute1, bool pm1, uint8_t hour2, uint8_t minute2, bool pm2);
+
+    uint8_t *getInfo(uint8_t day, uint8_t num, uint8_t buffer[8]);
+    //uint8_t *getTimeline(uint8_t day, uint8_t buffer[288]);
+    bool isDayActive(uint8_t day, uint8_t num);
+    void save(uint8_t data[168]); //Num of DaySchedule Variables * Days in a week * Schedule per day. 8 * 7 * 3
+    void load(uint8_t data[168]);
+
+    uint8_t *locateClosest(uint8_t day, uint8_t hour, uint8_t min, uint8_t buffer[2]);
+    uint8_t* next(uint8_t day, uint8_t buffer[2]);
+    void disable(void);
+    void enable(void);
+    void toggleSchedule(void);
+    bool isEnable(void);
+    bool isRunning(void);
+
 
 private:
     struct DaySchedule
@@ -25,20 +53,27 @@ private:
         uint8_t endHr = 0;
         uint8_t endMin = 0;
         bool endPM = 0;
-        bool active = 0;
+        bool active = false;
+        bool empty = true;
     };
 
-    DaySchedule scheduleInfo[NUM_DAY][3];
-    uint8_t scheduleSize[7] = {0};
-    bool timeline[7][24] = {{0}};
+    DaySchedule scheduleTable[NUM_DAY][3];
+    uint8_t scheduleOrder[7][3] = {0};
+    //uint8_t timeline[7][288] = {{0}};
+    bool scheduleFlag = 0;
+    bool activeFlag = 0;
+    bool isInitial = true;
+    uint8_t activeNum = 0;
+    uint8_t activeDay = 0;
 
-    //uint8_t* updateTimeline(void);
-    
-    uint8_t* to24Hour(uint8_t hour, uint8_t minute, uint8_t pm, uint8_t buffer[]);
+    //Return 0 if first set is earlier
+    bool compare(uint8_t hour1, uint8_t minute1, bool pm1, uint8_t hour2, uint8_t minute2, bool pm2);
+    //bool erase(uint8_t day, uint8_t num);
+    void clearOne(uint8_t day, uint8_t num);
+    void reorder(uint8_t day, uint8_t num, uint8_t hour, uint8_t min, bool pm);
 
-    void clearOneSchedule(uint8_t day, uint8_t num);
-    void orderSchedule(uint8_t day);
+    uint8_t to24Hour(uint8_t hour, bool pm);
+    uint16_t timelineSize(uint8_t day);
 };
-
 
 #endif

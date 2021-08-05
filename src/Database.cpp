@@ -6,7 +6,17 @@ Database::Database(){
         cropThresholdArr[i] = 80;
     }
 }
-    
+
+void Database::save(uint8_t data[MAX_CROP]){
+    for(int i=0;i<MAX_CROP;i++){
+        data[i] = cropThresholdArr[i];      
+    }
+}
+void Database::load(uint8_t data[MAX_CROP]){
+    for(int i=0;i<MAX_CROP;i++){
+        cropThresholdArr[i] = data[i];
+    }
+}
 
 bool Database::valveStatus(uint8_t _valveNum){
     return valveArr[_valveNum];
@@ -30,6 +40,15 @@ uint8_t Database::getSelectedCropNum(void){
 }
 uint8_t Database::getSelectedValveNum(void){
     return selectedValveNum;
+}
+
+uint8_t Database::getSelectedDate(bool index){
+    return selectedDate[index];
+}
+
+
+uint8_t Database::getDayOfWeek(void){
+    return dayOfWeek;
 }
 
 uint8_t Database::getHour(void){
@@ -63,6 +82,20 @@ void Database::setSelectedCropNum(uint8_t _selectedCropNum){
 }
 void Database::setSelectedValveNum(uint8_t _selectedValveNum){
     selectedValveNum = _selectedValveNum;
+}
+void Database::setSelectedDate(uint8_t value, bool index){
+    selectedDate[index] = value;
+}
+
+bool Database::setDayOfWeek(uint8_t _day){  
+    //Sunday = 0 and Sat = 6. convert to Sunday = 6 Sat = 5
+    //_day = (_day == 0)?5:(_day == 1)?6:_day-2;
+    _day = (_day == 0)?6:_day-1;
+    if(dayOfWeek !=_day){
+        dayOfWeek = _day;
+        return true;
+    }
+    return false;
 }
 
 void Database::setTime(uint8_t _hour, uint8_t _minute, bool _isPM){
