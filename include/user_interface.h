@@ -5,9 +5,6 @@
 #include <Arduino.h>
 
 
-#include "utilities.h"
-#include "string.h"
-
 #include "database.h"
 #include "custom_character.h"
 #include "schedule.h"
@@ -60,13 +57,13 @@ public:
     void update(uint8_t type);
     void printDisplay(uint8_t display);
 
-    bool blinkCheck(void);
-    bool blinkCursor(void);
+    // bool blinkCheck(void);
+    // bool blinkCursor(void);
 
-    bool isIdle(void);
-    void idleIncrement(uint32_t interval);
-    void idleResetCounter(void);
-    void wakeup(void);
+    // bool isIdle(void);
+    // void idleIncrement(uint32_t interval);
+    // void idleResetCounter(void);
+    // void wakeup(void);
 
     uint8_t getCursorPosition(uint8_t type);
     uint8_t getCurrentDisplay(void);
@@ -89,7 +86,7 @@ private:
     typedef void (UserInterface::*displayTable)();
     displayTable interfaceTable[DISPLAY_SIZE];
 
-    void idle(void);
+    //void idle(void);
     //If UP button was pressed (direction = 1), DOWN (direction = -1)
     void updateCursor(int8_t direction);
     void updateCursor2(int direction, uint8_t set);

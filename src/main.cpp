@@ -9,7 +9,6 @@
 #include "RTClib.h"
 
 #include "AT24C32_eeprom.h"
-#include "utilities.h"
 #include "constants.h"
 #include "user_interface.h"
 
@@ -115,12 +114,13 @@ void setup()
 
 	xValveSemaphore = xSemaphoreCreateBinary();
 
+	//Stack 128, 256, 400, 512 
 	xTaskCreate(vTaskButton, "Button", 400, NULL, 3, &xButtonTaskHandle);
 	xTaskCreate(vTaskTemperature, "Temperature", 400, NULL, 2, NULL);
 	xTaskCreate(vTaskRTC, "RTC", 400, NULL, 1, NULL);
-	xTaskCreate(vTaskSoilSensor, "Soil", 128, NULL, 2, &xSoilTaskHandle);
+	xTaskCreate(vTaskSoilSensor, "Soil", 256, NULL, 2, &xSoilTaskHandle);
 	xTaskCreate(vTaskValve, "Valve", 128, NULL, 3, NULL);
-	//xTaskCreate(vTaskAlarm, "Alarm", 600, NULL, 3, &xAlarmTaskHandle);
+	xTaskCreate(vTaskAlarm, "Alarm", 600, NULL, 3, &xAlarmTaskHandle);
 
 
 	//xTaskCreate(TaskSaveData, "Save", 400, NULL, 4, &xSaveTaskHandle);
@@ -135,15 +135,15 @@ void setup()
 
 void loop()
 {
-// 	set_sleep_mode(SLEEP_MODE_PWR_SAVE);
-// 	portENTER_CRITICAL();
-// 	sleep_enable();
-// #if defined(BODS) && defined(BODSE)
-// 	sleep_bod_disable();
-// #endif
-// 	portEXIT_CRITICAL();
-// 	sleep_cpu();
-// 	sleep_reset();
+	set_sleep_mode(SLEEP_MODE_PWR_SAVE);
+	portENTER_CRITICAL();
+	sleep_enable();
+#if defined(BODS) && defined(BODSE)
+	sleep_bod_disable();
+#endif
+	portEXIT_CRITICAL();
+	sleep_cpu();
+	sleep_reset();
 }
 
 void vAlarm_ISR_Handler(void)
@@ -204,25 +204,28 @@ void vTaskButton(void *pvParameters)
 	while (true)
 	{
 		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-		if (Interface.isIdle())
+		// if (Interface.isIdle())
+		// {
+		// 	Interface.wakeup();
+		// }
+		// else
+		// {
+		bool prevScheduleState = Interface.schedule.isEnable();
+		//Interface.idleResetCounter();
+		Interface.update(buttonPressed);
+		if (prevScheduleState != Interface.schedule.isEnable() && buttonPressed == SELECT)
 		{
-			Interface.wakeup();
-		}
-		else
-		{
-			bool prevScheduleState = Interface.schedule.isEnable();
-			Interface.idleResetCounter();
-			Interface.update(buttonPressed);
-			if (prevScheduleState != Interface.schedule.isEnable() && buttonPressed == SELECT)
-			{
-				if(Interface.schedule.isEnable()){
-					xTaskNotifyGive(xAlarmTaskHandle);
-				}
-				else{
-					vTaskResume(xSoilTaskHandle);
-				}
+			if(Interface.schedule.isEnable()){
+				xTaskNotifyGive(xAlarmTaskHandle);
 			}
-
+			else{
+				//vTaskResume(xSoilTaskHandle);
+			}
+		}
+		// }
+		if(Interface.schedule.isEnable() && Interface.schedule.isReschedule()){
+			Interface.schedule.clearRescheduleFlag();
+			xTaskNotifyGive(xAlarmTaskHandle);
 		}
 		vTaskDelay(pdMS_TO_TICKS(BUTTON_DEBOUNCE));
 		ulTaskNotifyTake(pdTRUE, 0);
@@ -277,13 +280,14 @@ void vTaskSoilSensor(void *pvParameters)
 
 	while (true)
 	{
-		if(Interface.schedule.isEnable() && !Interface.schedule.isRunning()){
-			Interface.database.setValveStatus(0, CLOSE);
-			// Interface.database.setValveStatus(1, CLOSE);
-			// Interface.database.setValveStatus(2, CLOSE);
+		// if(Interface.schedule.isEnable() && !Interface.schedule.isRunning()){
+		// 	Interface.database.setValveStatus(0, CLOSE);
+		// 	// Interface.database.setValveStatus(1, CLOSE);
+		// 	// Interface.database.setValveStatus(2, CLOSE);
 
-			vTaskSuspend(xSoilTaskHandle);
-		}
+		// 	vTaskSuspend(xSoilTaskHandle);
+		// }
+
 		//digitalWrite(SOIL_SENSOR1_POWER_PIN, HIGH);
 		//digitalWrite(SOIL_SENSOR2_POWER_PIN, HIGH);
 		//digitalWrite(SOIL_SENSOR3_POWER_PIN, HIGH);
@@ -300,7 +304,6 @@ void vTaskSoilSensor(void *pvParameters)
 		soilValue = map(soilValue, AIR_VALUE, WATER_VALUE, 0, 100);
 
 		//Serial.println(soilValue);
-
 		Interface.database.setSoilSensor(0, soilValue);
 		//Turn off sensors
 		//Remove outside later
@@ -317,6 +320,7 @@ void vTaskSoilSensor(void *pvParameters)
 			xSemaphoreGive(xValveSemaphore);
 		}
 		Interface.update(SOIL);
+			
 		// }
 		// digitalWrite(SOIL_SENSOR1_POWER_PIN, LOW);
 		// digitalWrite(SOIL_SENSOR2_POWER_PIN, LOW);
@@ -422,6 +426,7 @@ void vTaskAlarm(void *pvParameters){
 		}
 
 		Interface.update(SCHEDULE_STATUS);
+		Serial.print(time[1]);
 
 		if(time[0] == 25){
 			digitalWrite(RELAY1_PIN, !digitalRead(RELAY1_PIN));

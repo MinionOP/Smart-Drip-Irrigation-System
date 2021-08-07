@@ -2,8 +2,10 @@
 
 Schedule::Schedule()
 {
-    for(int i=0;i<7;i++){
-        for(int j=0;j<3;j++){
+    for (int i = 0; i < 7; i++)
+    {
+        for (int j = 0; j < 3; j++)
+        {
             scheduleOrder[i][j] = 3;
         }
     }
@@ -36,55 +38,87 @@ Schedule::Schedule()
 
     update(6, 0, 6, 30, 1, 7, 30, 1);
     update(6, 1, 5, 30, 0, 7, 15, 0);
-
 }
 
 bool Schedule::update(uint8_t day, uint8_t num, uint8_t _startHr, uint8_t _startMin, bool _startPM, uint8_t _endHr, uint8_t _endMin, bool _endPM)
 {
+
     if (
         (_startMin > 55) ||
-        ( _endMin > 55) ||
+        (_endMin > 55) ||
         (_startMin != 0 && _startMin % 5 != 0) ||
         (_endMin != 0 && _endMin % 5 != 0) ||
         (_startHr == 0 || _endHr == 0) ||
-        (_startHr == _endHr && _startMin == _endMin && _startPM == _endPM)
-        )
+        (_startHr == _endHr && _startMin == _endMin && _startPM == _endPM))
     {
         return false;
     }
- 
+
+    bool toClear = true;
+
     if (!scheduleTable[day][num].empty)
     {
-        clear(day, num);
+        if (
+            scheduleTable[day][num].startHr == _startHr &&
+            scheduleTable[day][num].startMin == _startMin &&
+            scheduleTable[day][num].startPM == _startPM &&
+            scheduleTable[day][num].endHr == _endHr &&
+            scheduleTable[day][num].endMin == _endMin &&
+            scheduleTable[day][num].endPM == _endPM)
+        {
+            toClear = false;
+        }
+        else
+        {
+            clear(day, num);
+        }
     }
-    // uint16_t startPos = to24Hour(_startHr, _startPM) * 12 + (_startMin / 5),
-    //          endPos = to24Hour(_endHr, _endPM) * 12 + (_endMin / 5);
 
-    // int duration = ((int)(endPos - startPos) > 0) ? (endPos - startPos) : (288 - startPos + endPos);
+    if (toClear)
+    {
+        scheduleTable[day][num].startHr = _startHr;
+        scheduleTable[day][num].startMin = _startMin;
+        scheduleTable[day][num].startPM = _startPM;
+        scheduleTable[day][num].endHr = _endHr;
+        scheduleTable[day][num].endMin = _endMin;
+        scheduleTable[day][num].endPM = _endPM;
+    }
+    //scheduleTable[day][num].active = (setToInActive)?false:true;
+    scheduleTable[day][num].active = false;
+    scheduleTable[day][num].empty = false;
 
-    // for (int i = 0, counter = 0; i <= duration; i++)
-    // {
-    //     if (i + startPos >= 288)
-    //     {
-    //         timeline[day][counter]++;
-    //         counter++;
-    //     }
-    //     else
-    //     {
-    //         timeline[day][i + startPos]++;
-    //     }
-    // }
-    uint16_t startPos = to24Hour(_startHr, _startPM) * 12 + (_startMin / 5),
-             endPos = to24Hour(_endHr, _endPM) * 12 + (_endMin / 5),
+    reorder(day, num, _startHr, _startMin, _startPM);
+
+    reschedule = true;
+
+    return true;
+}
+
+void Schedule::disableDay(uint8_t day, uint8_t num)
+{
+    scheduleTable[day][num].active = false;
+}
+
+//Bug, do not update other timer if schedule was previous inactive
+void Schedule::enableDay(uint8_t day, uint8_t num)
+{
+    if (scheduleTable[day][num].active)
+        return;
+
+    uint8_t type = 0,
+            _startHr = scheduleTable[day][num].startHr,
+            _startMin = scheduleTable[day][num].startMin,
+            _endHr = scheduleTable[day][num].endHr,
+            _endMin = scheduleTable[day][num].endMin;
+
+    uint16_t startPos = to24Hour(_startHr, scheduleTable[day][num].startPM) * 12 + (_startMin / 5),
+             endPos = to24Hour(_endHr, scheduleTable[day][num].endPM) * 12 + (_endMin / 5),
              s2 = 0,
              e2 = 0;
-    uint8_t  type = 0;
-
-    bool setToInActive = false;
 
     for (int i = 0, x = 3; i < 3; i++)
     {
-        if (scheduleTable[day][i].empty)
+        if (scheduleTable[day][i].empty || i == num || !scheduleTable[day][i].active)
             continue;
 
         s2 = to24Hour(scheduleTable[day][i].startHr, scheduleTable[day][i].startPM) * 12 + scheduleTable[day][i].startMin / 5;
@@ -98,14 +132,10 @@ bool Schedule::update(uint8_t day, uint8_t num, uint8_t _startHr, uint8_t _start
         {
         case 0:
         {
-            if (startPos <= s2 && endPos >= e2)
+            if ((startPos <= s2 && endPos >= e2) || (startPos >= s2 && endPos <= e2))
             {
                 scheduleTable[day][i].active = false;
                 continue;
-            }
-            else if (startPos >= s2 && endPos <= e2)
-            {
-                setToInActive = true;
             }
             if (startPos <= s2 && endPos >= s2 && endPos <= e2)
             {
@@ -119,7 +149,7 @@ bool Schedule::update(uint8_t day, uint8_t num, uint8_t _startHr, uint8_t _start
         }
         case 1:
         {
-            if (startPos >= e2 && endPos >= e2)
+            if ((startPos >= e2 && endPos >= e2) || (startPos <=s2 && endPos <= s2))
             {
                 scheduleTable[day][i].active = false;
                 continue;
@@ -138,7 +168,8 @@ bool Schedule::update(uint8_t day, uint8_t num, uint8_t _startHr, uint8_t _start
         {
             if (startPos >= s2 && endPos <= 288)
             {
-                setToInActive = true;
+                scheduleTable[day][i].active = false;
+                continue;
             }
             if (startPos <= s2 && endPos >= s2)
             {
@@ -152,14 +183,10 @@ bool Schedule::update(uint8_t day, uint8_t num, uint8_t _startHr, uint8_t _start
         }
         case 3:
         {
-            if (startPos <= s2 && endPos >= e2)
+            if ((startPos <= s2 && endPos >= e2) || (startPos >= s2 && endPos <= e2))
             {
                 scheduleTable[day][i].active = false;
                 continue;
-            }
-            else if (startPos >= s2 && endPos <= e2)
-            {
-                setToInActive = true;
             }
             if (startPos <= s2 && endPos <= e2)
             {
@@ -172,7 +199,6 @@ bool Schedule::update(uint8_t day, uint8_t num, uint8_t _startHr, uint8_t _start
             break;
         }
         }
-
         if (x == 0)
         {
             startPos = e2;
@@ -185,45 +211,19 @@ bool Schedule::update(uint8_t day, uint8_t num, uint8_t _startHr, uint8_t _start
             _endHr = scheduleTable[day][i].startHr;
             _endMin = scheduleTable[day][i].startMin;
         }
-
-        if (setToInActive)
-        {
-            break;
-        }
         x = 3;
     }
 
     scheduleTable[day][num].startHr = _startHr;
     scheduleTable[day][num].startMin = _startMin;
-    scheduleTable[day][num].startPM = _startPM;
     scheduleTable[day][num].endHr = _endHr;
     scheduleTable[day][num].endMin = _endMin;
-    scheduleTable[day][num].endPM = _endPM;
-    scheduleTable[day][num].active = (setToInActive)?false:true;
-    scheduleTable[day][num].empty = false;
-
-    reorder(day, num, _startHr, _startMin, _startPM);
-
-
-    return true;
-}
-
-bool Schedule::disable(uint8_t day, uint8_t num)
-{
-    // bool temp = erase(day,num);
-    // if(!temp){
-    //     return false;
-    // }
-    scheduleTable[day][num].active = false;
-    return true;
+    scheduleTable[day][num].active = true;
+    reschedule = true;
 }
 
 bool Schedule::clear(uint8_t day, uint8_t num)
 {
-    // bool temp = erase(day,num);
-    // if(!temp){
-    //     return false;
-    // }
     scheduleTable[day][num].startHr = 0;
     scheduleTable[day][num].startMin = 0;
     scheduleTable[day][num].startPM = 0;
@@ -235,55 +235,6 @@ bool Schedule::clear(uint8_t day, uint8_t num)
 
     return true;
 }
-
-// bool Schedule::erase(uint8_t day, uint8_t num)
-// {
-//     if (scheduleTable[day][num].empty)
-//     {
-//         return true;
-//     }
-//     uint8_t _startHr = scheduleTable[day][num].startHr,
-//             _startMin = scheduleTable[day][num].startMin,
-//             _endHr = scheduleTable[day][num].endHr,
-//             _endMin = scheduleTable[day][num].endMin;
-//     bool    _startPM = scheduleTable[day][num].startPM,
-//             _endPM = scheduleTable[day][num].endPM;
-
-//     uint16_t startPos = to24Hour(_startHr, _startPM) * 12 + (_startMin / 5),
-//              endPos = to24Hour(_endHr, _endPM) * 12 + (_endMin / 5);
-//     int duration = ((int)(endPos - startPos) > 0) ? (endPos - startPos) : (288 - startPos + endPos);
-
-//     for (int i = 0, counter = 0; i <= duration; i++)
-//     {
-//         if (i + startPos >= 288)
-//         {
-//             timeline[day][counter]--;
-//             counter++;
-//         }
-//         else
-//         {
-//             timeline[day][i + startPos]--;
-//         }
-//     }
-//     return true;
-// }
-
-// bool Schedule::isAvailable(uint8_t day, uint8_t hour, uint8_t min, uint8_t pm){
-//     hour = to24Hour(hour,pm);
-//     uint8_t time = hour*12 + min/5;
-//     if(min%5 == 0){
-//         if(timeline[day][time])
-//             return true;
-//     }
-//     else{
-//         if (timeline[day][time] && timeline[day][(time + 1) % 288])
-//         {
-//             return true;
-//         }
-//     }
-//     return false;
-// }
-
 
 uint8_t *Schedule::getInfo(uint8_t day, uint8_t num, uint8_t buffer[8])
 {
@@ -309,18 +260,6 @@ bool Schedule::isDayActive(uint8_t day, uint8_t num)
     return false;
 }
 
-// uint16_t Schedule::timelineSize(uint8_t day)
-// {
-//     uint16_t counter = 0;
-//     for (int i = 0; i < 288; i++)
-//     {
-//         if (timeline[day][i])
-//         {
-//             counter++;
-//         }
-//     }
-//     return counter;
-// }
 void Schedule::clearOne(uint8_t day, uint8_t num)
 {
     scheduleTable[day][num].active = 0;
@@ -332,7 +271,7 @@ void Schedule::reorder(uint8_t day, uint8_t num, uint8_t hour, uint8_t min, bool
              num2 = 0,
              buf[3] = {0};
 
-    uint8_t  counter = 0;
+    uint8_t counter = 0;
 
     for (int i = 0; i < 3; i++)
     {
@@ -350,9 +289,12 @@ void Schedule::reorder(uint8_t day, uint8_t num, uint8_t hour, uint8_t min, bool
 
         counter++;
     }
-    for (int i = 0, value = 0; i < counter-1; i++) {
-        for (int j = 0; j < counter - i-1; j++) {
-            if (buf[j] > buf[j + 1]) {
+    for (int i = 0, value = 0; i < counter - 1; i++)
+    {
+        for (int j = 0; j < counter - i - 1; j++)
+        {
+            if (buf[j] > buf[j + 1])
+            {
                 value = buf[j];
                 buf[j] = buf[j + 1];
                 buf[j + 1] = value;
@@ -365,26 +307,29 @@ void Schedule::reorder(uint8_t day, uint8_t num, uint8_t hour, uint8_t min, bool
     }
 }
 
-
-
-uint8_t* Schedule::locateClosest(uint8_t day, uint8_t hour, uint8_t min, uint8_t buffer[2]) {
-    uint16_t a1 = hour*12 + min / 5,
+uint8_t *Schedule::locateClosest(uint8_t day, uint8_t hour, uint8_t min, uint8_t buffer[2])
+{
+    uint16_t a1 = hour * 12 + min / 5,
              a2,
              x = 288;
-    uint8_t  pos = 0,
-             counter = 0,
-             s = 0;
-    bool     b1 = true,
-             b2 = true;
+    uint8_t pos = 0,
+            counter = 0,
+            s = 0;
+    bool b1 = true,
+         b2 = true;
 
-    for (int i = 0; i < 3; i++) {
-        if(!scheduleTable[day][i].active) {
+    for (int i = 0; i < 3; i++)
+    {
+        if (!scheduleTable[day][i].active)
+        {
             counter++;
         }
-        else{
+        else
+        {
             s = i;
         }
-        if (counter == 3) {
+        if (counter == 3)
+        {
             buffer[0] = 25;
             return buffer;
         }
@@ -421,56 +366,58 @@ uint8_t* Schedule::locateClosest(uint8_t day, uint8_t hour, uint8_t min, uint8_t
         }
     }
 
-    if(b2){
+    if (b2)
+    {
         buffer[0] = to24Hour(scheduleTable[day][pos].startHr, scheduleTable[day][pos].startPM);
-	    buffer[1] = scheduleTable[day][pos].startMin;
+        buffer[1] = scheduleTable[day][pos].startMin;
         isInitial = true;
     }
-    else{
+    else
+    {
         buffer[0] = to24Hour(scheduleTable[day][pos].endHr, scheduleTable[day][pos].endPM);
-	    buffer[1] = scheduleTable[day][pos].endMin; 
+        buffer[1] = scheduleTable[day][pos].endMin;
         isInitial = false;
     }
-   
+
     activeNum = pos;
 
     return buffer;
 }
 
-uint8_t* Schedule::next(uint8_t day, uint8_t buffer[2]) {
-    if (isInitial) {
+uint8_t *Schedule::next(uint8_t day, uint8_t buffer[2])
+{
+    if (isInitial)
+    {
         isInitial = !isInitial;
         buffer[0] = to24Hour(scheduleTable[day][activeNum].endHr, scheduleTable[day][activeNum].endPM);
         buffer[1] = scheduleTable[day][activeNum].endMin;
         return buffer;
     }
     isInitial = true;
-    for (int i = 0, i2 = 0, counter = 0; i < 3; i++, i2++) {
-        if (scheduleOrder[day][i] == activeNum && scheduleTable[day][scheduleOrder[day][i]].active) {
+    for (int i = 0, i2 = 0, counter = 0; i < 3; i++, i2++)
+    {
+        if (scheduleOrder[day][i] == activeNum && scheduleTable[day][scheduleOrder[day][i]].active)
+        {
             activeNum = scheduleOrder[day][(i + 1) % 3];
-            while (activeNum == 3) {
+            while (activeNum == 3)
+            {
                 activeNum = scheduleOrder[day][(i2 + 1) % 3];
-                if (counter == 3) {
+                if (counter == 3)
+                {
                     buffer[0] = 25;
                     return buffer;
                 }
                 counter++;
                 i2++;
             }
-			buffer[0] = to24Hour(scheduleTable[day][activeNum].startHr, scheduleTable[day][activeNum].startPM);
-			buffer[1] = scheduleTable[day][activeNum].startMin;
+            buffer[0] = to24Hour(scheduleTable[day][activeNum].startHr, scheduleTable[day][activeNum].startPM);
+            buffer[1] = scheduleTable[day][activeNum].startMin;
             return buffer;
         }
     }
     buffer[0] = 25;
     return buffer;
 }
-
-bool Schedule::isRunning(void){
-    return (!isInitial)?true:false;
-}
-
-
 
 
 
@@ -511,10 +458,12 @@ uint8_t Schedule::to24Hour(uint8_t hour, bool pm)
 //     return buffer;
 // }
 
-
-void Schedule::save(uint8_t data[168]){
-    for(int i=0, counter = 0;i<7;i++){
-        for(int j=0;j<3;j++){
+void Schedule::save(uint8_t data[168])
+{
+    for (int i = 0, counter = 0; i < 7; i++)
+    {
+        for (int j = 0; j < 3; j++)
+        {
             data[counter] = scheduleTable[i][j].startHr;
             data[counter + 1] = scheduleTable[i][j].startMin;
             data[counter + 2] = scheduleTable[i][j].startPM;
@@ -523,12 +472,13 @@ void Schedule::save(uint8_t data[168]){
             data[counter + 5] = scheduleTable[i][j].endPM;
             data[counter + 6] = scheduleTable[i][j].active;
             data[counter + 7] = scheduleTable[i][j].empty;
-            counter +=8;
+            counter += 8;
         }
     }
 }
 
-void Schedule::load(uint8_t data[168]){
+void Schedule::load(uint8_t data[168])
+{
     for (int i = 0, counter = 0; i < 7; i++)
     {
         for (int j = 0; j < 3; j++)
@@ -546,18 +496,32 @@ void Schedule::load(uint8_t data[168]){
     }
 }
 
-void Schedule::disable(void){
+void Schedule::disable(void)
+{
     scheduleFlag = 0;
 }
-void Schedule::enable(void){
+void Schedule::enable(void)
+{
     scheduleFlag = 1;
 }
-void Schedule::toggleSchedule(void){
+void Schedule::toggleSchedule(void)
+{
     scheduleFlag = !scheduleFlag;
 }
-bool Schedule::isEnable(void){
+bool Schedule::isEnable(void)
+{
     return scheduleFlag;
 }
 
+bool Schedule::isRunning(void)
+{
+    return (!isInitial) ? true : false;
+}
 
+bool Schedule::isReschedule(void){
+    return reschedule;
+}
 
+void Schedule::clearRescheduleFlag(void){
+    reschedule = false;
+}

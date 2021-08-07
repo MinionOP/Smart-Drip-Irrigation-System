@@ -30,7 +30,7 @@ UserInterface::UserInterface(uint8_t lcd_addr, uint8_t lcd_cols, uint8_t lcd_row
 
     resetLCDValue();
     idleStatus = false;
-    currentDisplay = MAIN_LCD;
+    //currentDisplay = MAIN_LCD;
 }
 
 void UserInterface::begin(void)
@@ -65,76 +65,47 @@ void UserInterface::update(uint8_t type)
             {
                 uint8_t soilTemp = database.soilSensor(i);
                 uint8_t valveTemp = database.valveStatus(i);
-                if (soilTemp != globalBuffer[i])
-                {
-                    globalBuffer[i] = soilTemp;
-                    lcdSetAndPrint(16, i, globalBuffer[i]);
-                    (globalBuffer[i] > 9) ? lcdSetAndPrint(18, i + 1, "%") : lcdSetAndPrint(17, i + 1, "%");
-                }
-                if (valveTemp != globalBuffer[i + 3])
-                {
-                    globalBuffer[i + 3] = valveTemp;
-                    if (globalBuffer[i + 3] == LOW)
-                    {
-                        lcdSetAndPrint(4, i + 1, "x");
-                    }
-                    else
-                    {
-                        lcdSetAndPrint(4, i + 1, " ");
-                    }
-                }
+
+                (soilTemp > 9) ? lcdSetAndPrint(18, i + 1, "%") : lcdSetAndPrint(17, i + 1, "%");
+                (valveTemp == 0)?lcdSetAndPrint(4, i + 1, "x"):lcdSetAndPrint(4, i + 1, " ");
+
             }
+
         }
         else if (currentDisplay == MAIN_LCD)
         {
             for (int i = 0, col_temp = 3; i < 3; i++)
             {
                 uint8_t soilTemp = database.soilSensor(i);
-                if (soilTemp != globalBuffer[i])
-                {
-                    globalBuffer[i] = soilTemp;
-                    lcdSetAndPrint(col_temp, 2, soilTemp);
-                    lcd.print("%");
-                }
-                col_temp = col_temp + 7;
+                lcdSetAndPrint(col_temp, 2, soilTemp);
+                lcd.print('%');
+                col_temp += 7;
             }
         }
         return;
     }
     case VALVE:
     {
+        
         if (currentDisplay == MAIN_LCD)
         {
             for (int i = 0, col_temp = 3; i < 3; i++)
             {
                 uint8_t valveTemp = database.valveStatus(i);
-                if (valveTemp != globalBuffer[i + 3])
-                {
-                    printValveStatus(valveTemp, 0, col_temp, 3);
-                    globalBuffer[i + 3] = valveTemp;
-                }
+                printValveStatus(valveTemp, 0, col_temp, 3);
                 col_temp = col_temp + 7;
             }
-            // lcd.setCursor(3, 3);
-            // printValveStatus(database.valveStatus(0), 0,3,3);
-            // lcd.setCursor(10, 3);
-            // printValveStatus(database.valveStatus(1), 0,10,3);
-            // lcd.setCursor(17, 3);
-            // printValveStatus(database.valveStatus(2), 0,17,3);
         }
 
         return;
     }
     case TIME:
     {
+        
         if (currentDisplay == MAIN_LCD)
         {
             uint8_t dayTemp = database.getDayOfWeek();
-            if (dayTemp != globalBuffer[7])
-            {
-                printDay(dayTemp, 0, 0);
-                globalBuffer[7] = dayTemp;
-            }
+            printDay(dayTemp, 0, 0);
             uint8_t col_temp = (dayTemp == 0 || dayTemp == 4 || dayTemp == 6) ? 7 : (dayTemp == 3 || dayTemp == 5) ? 9
                                                                                 : (dayTemp == 1)                   ? 8
                                                                                                                    : 10;
@@ -149,7 +120,6 @@ void UserInterface::update(uint8_t type)
         {
 
             lcdSetAndPrint(11, 1, database.temperature());
-            //lcd.write(2);
             lcd.print('F');
         }
         return;
@@ -209,28 +179,14 @@ void UserInterface::printMainLCD(void)
 {
     lcd.clear();
 
-    //createCustomSymbols(0);
-
     lcd.setCursor(19, 0);
-    //lcd.write(3);
     lcdSetAndPrint(0, 1, "Unit Temp:");
     lcdSetAndPrint(0, 2, "S1:");
-    // lcd.print(database.soilSensor(0));
-    // lcd.print("%");
     lcdSetAndPrint(7, 2, "S2:");
-    // lcd.print(database.soilSensor(1));
-    // lcd.print("%");
     lcdSetAndPrint(14, 2, "S3:");
-    // lcd.print(database.soilSensor(2));
-    // lcd.print("%");
-
     lcdSetAndPrint(0, 3, "V1:");
-    // printValveStatus(database.valveStatus(0), 0);
     lcdSetAndPrint(7, 3, "V2:");
-
-    // printValveStatus(database.valveStatus(1), 0);
     lcdSetAndPrint(14, 3, "V3:");
-    // printValveStatus(database.valveStatus(2), 0);
 
     lcd.setCursor(18, 0);
     if (schedule.isRunning())
@@ -246,60 +202,84 @@ void UserInterface::printMainLCD(void)
         lcd.print("SD");
     }
 
+    // for (int i = 0, col_temp = 3; i < 3; i++)
+    // {
+    //     uint8_t soilTemp = database.soilSensor(i);
+    //     uint8_t valveTemp = database.valveStatus(i);
+    //     if (soilTemp != globalBuffer[i] || currentDisplay != MAIN_LCD)
+    //     {
+    //         globalBuffer[i] = soilTemp;
+    //         lcdSetAndPrint(col_temp, 2, soilTemp);
+    //         lcd.print("%");
+    //     }
+    //     if (valveTemp != globalBuffer[i + 3] || currentDisplay != MAIN_LCD)
+    //     {
+    //         globalBuffer[i + 3] = valveTemp;
+    //         printValveStatus(valveTemp, 0, col_temp, 3);
+    //     }
+    //     col_temp = col_temp + 7;
+    // }
     for (int i = 0, col_temp = 3; i < 3; i++)
     {
         uint8_t soilTemp = database.soilSensor(i);
         uint8_t valveTemp = database.valveStatus(i);
-        if (soilTemp != globalBuffer[i] || currentDisplay != MAIN_LCD)
-        {
-            globalBuffer[i] = soilTemp;
-            lcdSetAndPrint(col_temp, 2, soilTemp);
-            lcd.print("%");
-        }
-        if (valveTemp != globalBuffer[i + 3] || currentDisplay != MAIN_LCD)
-        {
-            globalBuffer[i + 3] = valveTemp;
-            printValveStatus(valveTemp, 0, col_temp, 3);
-        }
+
+        lcdSetAndPrint(col_temp, 2, soilTemp);
+        lcd.print("%");
+
+        globalBuffer[i + 3] = valveTemp;
+        printValveStatus(valveTemp, 0, col_temp, 3);
         col_temp = col_temp + 7;
     }
 
     //Update time on LCD
+    // uint8_t dayTemp = database.getDayOfWeek();
+    // if (dayTemp != 9)
+    // {
+    //     if (dayTemp != globalBuffer[7] || currentDisplay != MAIN_LCD)
+    //     {
+    //         printDay(dayTemp, 0, 0);
+    //         globalBuffer[7] = dayTemp;
+    //     }
+
+    //     uint8_t col_temp = (dayTemp == 0 || dayTemp == 4 || dayTemp == 6) ? 7 : (dayTemp == 3 || dayTemp == 5) ? 9
+    //                                                                         : (dayTemp == 1)                   ? 8
+    //                                                                                                            : 10;
+
+    //     printTime(database.getHour(), database.getMinute(), database.getPM(), col_temp, 0);
+    // }
     uint8_t dayTemp = database.getDayOfWeek();
     if (dayTemp != 9)
     {
-        if (dayTemp != globalBuffer[7] || currentDisplay != MAIN_LCD)
-        {
-            printDay(dayTemp, 0, 0);
-            globalBuffer[7] = dayTemp;
-        }
-
+        printDay(dayTemp, 0, 0);
         uint8_t col_temp = (dayTemp == 0 || dayTemp == 4 || dayTemp == 6) ? 7 : (dayTemp == 3 || dayTemp == 5) ? 9
                                                                             : (dayTemp == 1)                   ? 8
                                                                                                                : 10;
 
         printTime(database.getHour(), database.getMinute(), database.getPM(), col_temp, 0);
     }
-    //Update temperature on LCD
+
     lcdSetAndPrint(11, 1, database.temperature());
-    //lcd.write(2);
     lcd.print("F");
 
     resetLCDValue();
     currentDisplay = MAIN_LCD;
 
-    if (idleStatus)
-    {
-        lcd.noBacklight();
-    }
 }
 void UserInterface::printMenuLCD(void)
 {
 
     lcd.clear();
-    (!skipMarker) ? lcdSetAndPrint(0, 0, ">Valve Setting") : lcdSetAndPrint(0, 0, " Valve Setting");
+    //(!skipMarker) ? lcdSetAndPrint(0, 0, ">Valve Setting") : lcdSetAndPrint(0, 0, " Valve Setting");
+    if(currentDisplay == MENU_LCD){
+        lcdSetAndPrint(0, 0, " Valve Setting");
+    }
+    else{
+        lcdSetAndPrint(0, 0, ">Valve Setting");
+    }
+
     //lcdSetAndPrint(0, 1, " Sensor Setting");
-    lcdSetAndPrint(0, 1, " Threshold Setting");
+    lcdSetAndPrint(0, 1, " Edit Crop Values");
     lcdSetAndPrint(0, 2, " Set Time/Schedule");
     lcdSetAndPrint(0, 3, " Go to Main Display");
 
@@ -491,53 +471,6 @@ void UserInterface::printThreshholdNumLCD(void)
 }
 void UserInterface::printScheduleLCD(void)
 {
-    // lcd.clear();
-    // currentDisplay = SCHEDULE_LCD;
-    // switch (page)
-    // {
-    // case 0:
-    // {
-    //     (!skipMarker) ? lcdSetAndPrint(0, 0, ">M |") : lcdSetAndPrint(0, 0, " M |");
-    //     if (pressed || skipMarker)
-    //     {
-    //         printDay(0, 4, 0);
-    //         lcd.print(':');
-    //         printSchedule(0, 0, 3, 4, 1);
-    //     }
-    //     lcdSetAndPrint(0, 1, " T |");
-    //     lcdSetAndPrint(0, 2, " W |");
-    //     lcdSetAndPrint(0, 3, " Th|");
-
-    //     lcd.setCursor(19, 3);
-    //     //lcd.write(0);
-    //     lcd.print("v");
-
-    //     break;
-    // }
-    // case 1:
-    // {
-    //     lcdSetAndPrint(0, 0, " F |");
-    //     lcdSetAndPrint(0, 1, " S |");
-    //     lcdSetAndPrint(0, 2, " Su|");
-    //     lcdSetAndPrint(0, 3, " Edit time");
-
-    //     lcd.setCursor(19, 3);
-    //     //lcd.write(0);
-    //     lcd.print("v");
-
-    //     break;
-    // }
-    // case 2:
-    // {
-    //     lcd.print(" Go back");
-    //     lcd.setCursor(19, 0);
-    //     //lcd.write(1);
-    //     lcd.print("^");
-    //     break;
-    // }
-    // }
-
-    // cursor[ROW] = 0;
 
     if (currentDisplay == SCHEDULE_LCD && cursor[ROW] == 0 && page == 0 && pressed == 1)
     {
@@ -860,88 +793,88 @@ void UserInterface::createCustomSymbols(uint8_t set)
     }
 }
 
-bool UserInterface::blinkCheck(void)
-{
-    if ((currentDisplay == THRESHOLD_NUM_LCD || currentDisplay == TIME_LCD) && !blinkStatus)
-    {
-        blinkStatus = 1;
-        return true;
-    }
-    return false;
-}
-bool UserInterface::blinkCursor(void)
-{
-    if (currentDisplay == THRESHOLD_NUM_LCD || currentDisplay == TIME_LCD)
-    {
-        if (cursor[BLINK] && cursor[COLUMN] != 15)
-        {
-            blinkAnimation = !blinkAnimation;
-            lcd.setCursor(cursor[COLUMN], 3);
-            if (currentDisplay == TIME_LCD && cursor[COLUMN] == 13)
-            {
-                (blinkAnimation ? lcd.print("  ") : lcd.print("--"));
-            }
-            else
-            {
-                (blinkAnimation ? lcd.print("   ") : lcd.print("---"));
-            }
-        }
-        return true;
-    }
-    blinkStatus = !blinkStatus;
-    return false;
-}
+// bool UserInterface::blinkCheck(void)
+// {
+//     if ((currentDisplay == THRESHOLD_NUM_LCD || currentDisplay == TIME_LCD) && !blinkStatus)
+//     {
+//         blinkStatus = 1;
+//         return true;
+//     }
+//     return false;
+// }
+// bool UserInterface::blinkCursor(void)
+// {
+//     if (currentDisplay == THRESHOLD_NUM_LCD || currentDisplay == TIME_LCD)
+//     {
+//         if (cursor[BLINK] && cursor[COLUMN] != 15)
+//         {
+//             blinkAnimation = !blinkAnimation;
+//             lcd.setCursor(cursor[COLUMN], 3);
+//             if (currentDisplay == TIME_LCD && cursor[COLUMN] == 13)
+//             {
+//                 (blinkAnimation ? lcd.print("  ") : lcd.print("--"));
+//             }
+//             else
+//             {
+//                 (blinkAnimation ? lcd.print("   ") : lcd.print("---"));
+//             }
+//         }
+//         return true;
+//     }
+//     blinkStatus = !blinkStatus;
+//     return false;
+// }
 
-bool UserInterface::isIdle(void)
-{
-    return idleStatus;
-}
-void UserInterface::idleIncrement(uint32_t interval)
-{
-    if (IDLE_INTERVAL < interval)
-    {
-        return;
-    }
-    if (!idleStatus)
-    {
-        idleCounter++;
-        if (idleCounter >= IDLE_INTERVAL / interval)
-        {
-            idleCounter = 0;
-            idle();
-        }
-    }
-}
-void UserInterface::idleResetCounter(void)
-{
-    idleCounter = 0;
-}
-void UserInterface::idle(void)
-{
-    if (skip == 1)
-    {
-        skip = 0;
-    }
-    else
-    {
-        idleStatus = true;
-        for (int i = 0; i < 20; i++)
-        {
-            globalBuffer[i] = -1;
-        }
-        printMainLCD();
-    }
-}
+// bool UserInterface::isIdle(void)
+// {
+//     return idleStatus;
+// }
+// void UserInterface::idleIncrement(uint32_t interval)
+// {
+//     if (IDLE_INTERVAL < interval)
+//     {
+//         return;
+//     }
+//     if (!idleStatus)
+//     {
+//         idleCounter++;
+//         if (idleCounter >= IDLE_INTERVAL / interval)
+//         {
+//             idleCounter = 0;
+//             idle();
+//         }
+//     }
+// }
+// void UserInterface::idleResetCounter(void)
+// {
+//     idleCounter = 0;
+// }
+// void UserInterface::idle(void)
+// {
+//     if (skip == 1)
+//     {
+//         skip = 0;
+//     }
+//     else
+//     {
+//         idleStatus = true;
+//         for (int i = 0; i < 20; i++)
+//         {
+//             globalBuffer[i] = -1;
+//         }
+//         printMainLCD();
+//     }
+// }
 
-void UserInterface::wakeup(void)
-{
-    if (idleStatus)
-    {
-        lcd.backlight();
-        idleStatus = false;
-    }
-    idleCounter = 0;
-}
+// void UserInterface::wakeup(void)
+// {
+//     if (idleStatus)
+//     {
+//         lcd.backlight();
+//         idleStatus = false;
+//     }
+//     idleCounter = 0;
+// }
 
 void UserInterface::resetLCDValue(void)
 {
@@ -1495,51 +1428,26 @@ void UserInterface::selectButton(void)
         }
         break;
     }
+
+
     case SCHEDULE_LCD3:
     {
-        uint8_t day = database.getSelectedDate(0);
-        uint8_t num = database.getSelectedDate(1);
-        bool toUpdate = 0;
+        uint8_t day = database.getSelectedDate(0),
+                num = database.getSelectedDate(1);
+        bool toUpdateSchedule = 0;
         if (cursor[ROW] == 3)
         {
-            //--------------------------------------------------------------//
-            /*
-            Will produce an error if time is invalid
-            Example: 0:00am - 0:00pm, need to verify. do later
-            */
-            //--------------------------------------------------------------//
-
-            if (toggleActiveTemp != schedule.isDayActive(day, num))
-            {
-                if (schedule.isDayActive(day, num))
-                {
-                    schedule.disable(day, num);
-                    // lcdSetAndPrint(9,2,"disable");
-                }
-                else
-                {
-                    toUpdate = true;
-                    // lcdSetAndPrint(9,2,"update");
-                }
-            }
-            // lcdSetAndPrint(3,1,schedule.isDayActive(day,num));
-            // lcdSetAndPrint(2,1,toggleActiveTemp);
 
             for (int i = 0; i < 10; i++)
             {
                 if (globalBuffer[i] != globalBuffer[i + 10])
                 {
-                    toUpdate = true;
+                    toUpdateSchedule = true;
                     break;
                 }
             }
-
-            for (int i = 0; i < 10; i++)
-            {
-                lcdSetAndPrint(i, 0, globalBuffer[i]);
-                lcdSetAndPrint(i, 1, globalBuffer[i + 10]);
-            }
-            if (toUpdate == true)
+ 
+            if (toUpdateSchedule == true)
             {
                 lcdSetAndPrint(9, 2, "true");
             }
@@ -1548,7 +1456,7 @@ void UserInterface::selectButton(void)
                 lcdSetAndPrint(9, 2, "false");
             }
 
-            if (toUpdate == true)
+            if (toUpdateSchedule == true)
             {
                 bool boolValue = schedule.update(database.getSelectedDate(0),            //Selected day
                                                  database.getSelectedDate(1),            //Selected number
@@ -1558,6 +1466,7 @@ void UserInterface::selectButton(void)
                                                  globalBuffer[5] * 10 + globalBuffer[6], //End: hour
                                                  globalBuffer[7] * 10 + globalBuffer[8], //End: minute
                                                  globalBuffer[9]                         //End: PM or AM
+
                 );
                 if (boolValue == false)
                 {
@@ -1565,6 +1474,19 @@ void UserInterface::selectButton(void)
                     break;
                 }
             }
+
+            if (toggleActiveTemp != schedule.isDayActive(day, num))
+            {
+                if (toggleActiveTemp == 0)
+                {
+                    schedule.disableDay(day, num);
+                }
+                else if (toggleActiveTemp == 1)
+                {
+                    schedule.enableDay(day, num);
+                }
+            }
+
             printScheduleLCD2();
         }
         else if (cursor[ROW] == 0)

@@ -10,7 +10,7 @@ namespace constants
     constexpr uint16_t WATER_VALUE      = 305;  //Sensor value completely submerged in water
 
     //In milliseconds 
-    constexpr uint32_t SOIL_SENSOR_INTERVAL  = 5000;   //5 seconds
+    constexpr uint32_t SOIL_SENSOR_INTERVAL  = 15000;   //15 seconds
     constexpr uint32_t TEMPERATURE_INTERVAL  = 300000;   //5 minute
     constexpr uint32_t RTC_INTERVAL          = 60000;   //60 seconds
 

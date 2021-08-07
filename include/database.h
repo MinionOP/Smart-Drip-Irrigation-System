@@ -49,7 +49,7 @@ public:
 private:
     uint8_t valveArr[3] = {0};
     uint8_t cropArr[3] = {0};
-    int soilArr[3] = {0};
+    uint8_t soilArr[3] = {0};
     
     uint8_t cropThresholdArr[MAX_CROP];
     uint8_t selectedValveNum = 0;

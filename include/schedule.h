@@ -25,9 +25,9 @@ class Schedule
 public:
     Schedule();
     bool update(uint8_t day, uint8_t num, uint8_t _startHr, uint8_t _startMin, bool _startPM, uint8_t _endHr, uint8_t _endMin, bool _endPM);
-    bool disable(uint8_t day, uint8_t num);
+    void disableDay(uint8_t day, uint8_t num);
+    void enableDay(uint8_t day, uint8_t num);
     bool clear(uint8_t day, uint8_t num);
-    bool verify(uint8_t hour1, uint8_t minute1, bool pm1, uint8_t hour2, uint8_t minute2, bool pm2);
 
     uint8_t *getInfo(uint8_t day, uint8_t num, uint8_t buffer[8]);
     //uint8_t *getTimeline(uint8_t day, uint8_t buffer[288]);
@@ -42,6 +42,8 @@ public:
     void toggleSchedule(void);
     bool isEnable(void);
     bool isRunning(void);
+    bool isReschedule(void);
+    void clearRescheduleFlag(void);
 
 
 private:
@@ -59,12 +61,12 @@ private:
 
     DaySchedule scheduleTable[NUM_DAY][3];
     uint8_t scheduleOrder[7][3] = {0};
-    //uint8_t timeline[7][288] = {{0}};
+    uint8_t activeNum = 0;
+    uint8_t activeDay = 0;
     bool scheduleFlag = 0;
     bool activeFlag = 0;
     bool isInitial = true;
-    uint8_t activeNum = 0;
-    uint8_t activeDay = 0;
+    bool reschedule = false;
 
     //Return 0 if first set is earlier
     bool compare(uint8_t hour1, uint8_t minute1, bool pm1, uint8_t hour2, uint8_t minute2, bool pm2);
