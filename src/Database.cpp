@@ -68,13 +68,53 @@ uint8_t Database::getHour(void)
 {
     return hour;
 }
+
+uint8_t Database::get24Hour(void){
+    if (hour == 12)
+    {
+        if (pm == true)
+        {
+            return 12;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+    return (pm == false) ? (hour) : (hour + 12);
+}
+
 uint8_t Database::getMinute(void)
 {
     return minute;
 }
 bool Database::getPM(void)
 {
-    return PM;
+    return pm;
+}
+
+bool Database::isValveAvailable(uint8_t _valveNum)
+{
+    return valveAvailArr[_valveNum];
+}
+
+void Database::setValveAvailability(uint8_t _valveNum, bool status)
+{
+    if (valveAvailArr[_valveNum] == 1 && status == 0)
+    {
+        valveFlagArr[_valveNum] = 1;
+    }
+    valveAvailArr[_valveNum] = status;
+}
+
+bool Database::getValveFlag(uint8_t _valveNum)
+{
+    return valveFlagArr[_valveNum];
+}
+
+void Database::clearValveFlag(uint8_t _valveNum)
+{
+    valveFlagArr[_valveNum] = 0;
 }
 
 void Database::setValveStatus(uint8_t _valveNum, bool status)
@@ -83,13 +123,15 @@ void Database::setValveStatus(uint8_t _valveNum, bool status)
 }
 void Database::setSoilSensor(uint8_t _soilNum, uint8_t _soil)
 {
-    if(_soil >= 100){
+    if (_soil >= 100)
+    {
         _soil = 100;
     }
-    else if(_soil <0){
+    else if (_soil < 0)
+    {
         _soil = 0;
     }
-    if(soilArr[_soilNum] != _soil)
+    if (soilArr[_soilNum] != _soil)
         soilArr[_soilNum] = _soil;
 }
 void Database::setCrop(uint8_t _valveNum, uint8_t _crop)
@@ -118,14 +160,22 @@ void Database::setSelectedDate(uint8_t value, bool index)
     selectedDate[index] = value;
 }
 
-bool Database::setDayOfWeek(uint8_t _day)
+bool Database::setDayOfWeek(uint8_t _dayOfWeek, bool reformat)
 {
     //Sunday = 0 and Sat = 6. convert to Sunday = 6 Sat = 5
     //_day = (_day == 0)?5:(_day == 1)?6:_day-2;
-    _day = (_day == 0) ? 6 : _day - 1;
-    if (dayOfWeek != _day)
+    if (reformat)
     {
-        dayOfWeek = _day;
+        _dayOfWeek = (_dayOfWeek == 0) ? 6 : _dayOfWeek - 1;
+    }
+    else
+    {
+        dayOfWeek = _dayOfWeek;
+        return true;
+    }
+    if (dayOfWeek != _dayOfWeek)
+    {
+        dayOfWeek = _dayOfWeek;
         return true;
     }
     return false;
@@ -135,7 +185,7 @@ void Database::setTime(uint8_t _hour, uint8_t _minute, bool _isPM)
 {
     hour = _hour;
     minute = _minute;
-    PM = _isPM;
+    pm = _isPM;
 }
 void Database::setHour(uint8_t _hour)
 {
@@ -147,5 +197,38 @@ void Database::setMinute(uint8_t _minute)
 }
 void Database::setPM(bool _isPM)
 {
-    PM = _isPM;
+    pm = _isPM;
+}
+
+uint8_t* Database::getCalenderDate(uint8_t buffer[3])
+{
+    for(int i=0;i<3;i++){
+        buffer[i] = calenderDate[i];
+    }
+    return buffer;
+}
+void Database::setCalenderDate(uint8_t _month, uint8_t _day, uint16_t _year)
+{
+    if(calenderDate[0] != _month)
+        calenderDate[0] = _month;
+    if(calenderDate[1] != _day)
+        calenderDate[1] = _day;
+    if(calenderDate[2] != _year){
+        _year -=2000;
+        calenderDate[2] = _year;
+    }
+}
+
+bool Database::isRTCFlagEnable(void)
+{
+    return toUpdateRTC;
+}
+
+void Database::clearRTCFlag(void)
+{
+    toUpdateRTC = false;
+}
+void Database::enableRTCFlag(void)
+{
+    toUpdateRTC = true;
 }

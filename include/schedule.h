@@ -45,6 +45,9 @@ public:
     bool isReschedule(void);
     void clearRescheduleFlag(void);
 
+    uint8_t getActiveDay(void);
+    uint8_t getActiveNum(void);
+
 
 private:
     struct DaySchedule

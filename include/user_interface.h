@@ -43,7 +43,6 @@ enum Type
     SCHEDULE_STATUS
 };
 
-const uint32_t IDLE_INTERVAL = 90000; //90 seconds
 const uint16_t BLINK_INTERVAL = 1500;
 
 class UserInterface
@@ -54,19 +53,24 @@ public:
 
     UserInterface(uint8_t lcd_addr, uint8_t lcd_cols, uint8_t lcd_rows);
     void begin(void);
-    void update(uint8_t type);
+    void update(uint8_t type, uint8_t num = 10);
     void printDisplay(uint8_t display);
 
-    // bool blinkCheck(void);
-    // bool blinkCursor(void);
 
-    // bool isIdle(void);
-    // void idleIncrement(uint32_t interval);
-    // void idleResetCounter(void);
-    // void wakeup(void);
+    bool isIdle(void);
+    void wakeup(void);
+    void idle(void);
 
     uint8_t getCursorPosition(uint8_t type);
     uint8_t getCurrentDisplay(void);
+    
+    void printToLCD(uint8_t col, uint8_t row, uint8_t buffer[20], uint8_t len){
+        lcd.setCursor(col,row);
+        for(int i=0;i<len;i++){
+            lcd.print(buffer[i]);
+            lcd.print(' ');
+        }
+    }
 
 private:
     struct MenuInfo
@@ -86,7 +90,6 @@ private:
     typedef void (UserInterface::*displayTable)();
     displayTable interfaceTable[DISPLAY_SIZE];
 
-    //void idle(void);
     //If UP button was pressed (direction = 1), DOWN (direction = -1)
     void updateCursor(int8_t direction);
     void updateCursor2(int direction, uint8_t set);
@@ -115,19 +118,38 @@ private:
     void printValveStatus(uint8_t status, bool printType, uint8_t col, uint8_t row);
     //Print current date/time onto LCD
     void printTime(uint8_t hour, uint8_t minute, bool isPM, uint8_t col, uint8_t row);
-    void printCrop(uint8_t num);
+    void printCrop(uint8_t num, uint8_t col, uint8_t row);
     void printDay(uint8_t num, uint8_t col, uint8_t row);
     void printSchedule(uint8_t day, uint8_t startNum, uint8_t endNum, uint8_t col, uint8_t row);
 
-    void lcdClearRow(uint8_t row, uint8_t startPos, uint8_t endPos);
-    void lcdClear(void);
 
-    void lcdSetAndPrint(uint8_t col, uint8_t row, const char msg[20]); //Maybe add another argument const char msg2[20] = -1
-    void lcdSetAndPrint(uint8_t col, uint8_t row, int msg);
+    void lcdSP(uint8_t col, uint8_t row, const char msg[20]); //Maybe add another argument const char msg2[20] = -1
+    void lcdSP(uint8_t col, uint8_t row, int msg);
+    void lcdSP(uint8_t col, uint8_t row, char msg);
 
+    void reformatToGB(uint8_t dataArr[], uint8_t len, bool reformatDate = false);
     bool isLastPage(uint8_t _page);
+    
 
-    const char cursorArray[18][20] = {"---      ",
+    bool isInitialBootup = true,
+         idleStatus = false,
+         blinkAnimation = 0,
+         blinkStatus = 0,
+         skip = 1,
+         skipMarker = 0,
+         pressed = 0,
+         toggleActiveTemp = 0,
+         noDisplay = false;
+
+    int globalBuffer[25] = {0};
+
+    uint8_t testingCounter = 0,
+            currentDisplay,
+            tempArray[3] = {0},
+            page,
+            cursor[4] = {0};
+
+    const char cursorArray[24][20] = {"---      ",
                                       "   ---   ",
                                       "        >",
                                       "---             ",
@@ -144,24 +166,14 @@ private:
                                       "             -     ",
                                       "              -    ",
                                       "               --  ",
-                                      "                  -"};
+                                      "                  -",
+                                      "--                 ",
+                                      "   -               ",
+                                      "    -              ",
+                                      "        -          ",
+                                      "         -         ",
+                                      "            -      "};
 
-    bool idleStatus = false;
-    bool blinkAnimation = 0;
-    bool blinkStatus = 0;
-    bool skip = 1;
-    bool skipMarker = 0;
-    bool pressed = 0;
-    bool toggleActiveTemp = 0;
-
-
-    uint32_t idleCounter = 0;
-    int globalBuffer[20] = {0};
-    uint8_t testingCounter = 0;
-    uint8_t currentDisplay;
-    uint8_t tempArray[3] = {0};
-    uint8_t page;
-    uint8_t cursor[4] = {0};
 };
 
 #endif

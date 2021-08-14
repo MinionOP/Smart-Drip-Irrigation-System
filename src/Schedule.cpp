@@ -9,6 +9,7 @@ Schedule::Schedule()
             scheduleOrder[i][j] = 3;
         }
     }
+
     update(0, 0, 1, 30, 1, 2, 30, 1);
     update(0, 1, 2, 25, 1, 3, 35, 1);
     update(0, 2, 11, 25, 0, 6, 35, 0);
@@ -315,8 +316,11 @@ uint8_t *Schedule::locateClosest(uint8_t day, uint8_t hour, uint8_t min, uint8_t
     uint8_t pos = 0,
             counter = 0,
             s = 0;
-    bool b1 = true,
-         b2 = true;
+
+    bool    b1 = true,
+            b2 = true;
+
+    
 
     for (int i = 0; i < 3; i++)
     {
@@ -380,6 +384,7 @@ uint8_t *Schedule::locateClosest(uint8_t day, uint8_t hour, uint8_t min, uint8_t
     }
 
     activeNum = pos;
+    activeDay = day;
 
     return buffer;
 }
@@ -449,14 +454,7 @@ uint8_t Schedule::to24Hour(uint8_t hour, bool pm)
     return (pm == false) ? (hour) : (hour + 12);
 }
 
-// uint8_t *Schedule::getTimeline(uint8_t day, uint8_t buffer[288])
-// {
-//     for (int i = 0; i < 288; i++)
-//     {
-//         buffer[i] = timeline[day][i];
-//     }
-//     return buffer;
-// }
+
 
 void Schedule::save(uint8_t data[168])
 {
@@ -494,6 +492,15 @@ void Schedule::load(uint8_t data[168])
             counter += 8;
         }
     }
+}
+
+uint8_t Schedule::getActiveDay(void)
+{
+    return activeDay;
+}
+uint8_t Schedule::getActiveNum(void)
+{
+    return activeNum;
 }
 
 void Schedule::disable(void)
