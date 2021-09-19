@@ -55,22 +55,18 @@ public:
     void begin(void);
     void update(uint8_t type, uint8_t num = 10);
     void printDisplay(uint8_t display);
+    void printToLCD(uint8_t col, uint8_t row, uint8_t buffer[20], uint8_t len);
 
 
     bool isIdle(void);
+    bool isLCDOn(void);
+
+
     void wakeup(void);
     void idle(void);
 
     uint8_t getCursorPosition(uint8_t type);
     uint8_t getCurrentDisplay(void);
-    
-    void printToLCD(uint8_t col, uint8_t row, uint8_t buffer[20], uint8_t len){
-        lcd.setCursor(col,row);
-        for(int i=0;i<len;i++){
-            lcd.print(buffer[i]);
-            lcd.print(' ');
-        }
-    }
 
 private:
     struct MenuInfo
@@ -135,7 +131,6 @@ private:
          idleStatus = false,
          blinkAnimation = 0,
          blinkStatus = 0,
-         skip = 1,
          skipMarker = 0,
          pressed = 0,
          toggleActiveTemp = 0,

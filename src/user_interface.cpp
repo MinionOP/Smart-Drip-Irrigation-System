@@ -407,7 +407,7 @@ void UserInterface::printCropThresholdLCD(void)
         (!skipMarker) ? lcdSP(0, 0, ">Select to restore") : lcdSP(0, 0, " Select to restore");
         lcdSP(0, 1, " default settings");
         lcdSP(0, 2, " Crop");
-        lcdSP(9, 2, "Threshold");
+        lcdSP(7, 2, "Target Value");
         printCrop(0, 1, 3);
         lcdSP(12, 3, database.cropThreshold(0));
         lcd.print('%');
@@ -831,23 +831,30 @@ bool UserInterface::isIdle(void)
 {
     return idleStatus;
 }
+
+bool UserInterface::isLCDOn(void){
+    return !noDisplay;
+}
+
 void UserInterface::idle(void)
 {
-    if (skip == 1)
-    {
-        skip = 0;
+    if(idleStatus && !noDisplay){
+        lcd.noDisplay();
+        noDisplay = true;
+        return;
     }
-    else
+    else if(idleStatus){
+        return;
+    }
+
+    idleStatus = true;
+    menu[currentDisplay].cursorType = 0;
+    printMainLCD();
+    lcd.noBacklight();
+    if (schedule.isEnable())
     {
-        idleStatus = true;
-        menu[currentDisplay].cursorType = 0;
-        printMainLCD();
-        lcd.noBacklight();
-        if (schedule.isEnable())
-        {
-            lcd.noDisplay();
-            noDisplay = true;
-        }
+        lcd.noDisplay();
+        noDisplay = true;
     }
 }
 void UserInterface::wakeup(void)
@@ -1498,6 +1505,15 @@ void UserInterface::selectButton(void)
         {
             page = 0;
             printScheduleLCD();
+            // uint8_t time[8] = {0};
+            // for(int i=0;i<3;i++){
+            //     schedule.getInfo(THURSDAY,i,time);
+            //     lcd.setCursor(0,i);
+            //     for(int j=0;j<8;j++){
+            //         lcd.print(time[j]);
+            //         lcd.print(' ');
+            //     }
+            // }
         }
         else
         {
@@ -1627,7 +1643,11 @@ void UserInterface::selectButton(void)
                     min2 = globalBuffer[7] * 10 + globalBuffer[8],
                     pm2 = globalBuffer[9];
 
-            if (hour1 == 0 || hour2 == 0 || (hour1 == hour2 && min1 == min2 && pm1 == pm2))
+            if (hour1 == 0 || 
+                hour2 == 0 ||
+                (hour1 == hour2 && min1 == min2 && pm1 == pm2) ||
+                (hour1 > hour2 && pm1 == 1 && pm2 == 0) ||
+                (hour1 >= hour2 && min1 > min2 && pm1 == pm2))
             {
                 lcdSP(11, 3, "Invalid");
             }
@@ -1777,5 +1797,15 @@ void UserInterface::printCrop(uint8_t num, uint8_t col, uint8_t row)
         lcd.print("Papaya");
         break;
     }
+    }
+}
+
+void UserInterface::printToLCD(uint8_t col, uint8_t row, uint8_t buffer[20], uint8_t len)
+{
+    lcd.setCursor(col, row);
+    for (int i = 0; i < len; i++)
+    {
+        lcd.print(buffer[i]);
+        lcd.print(' ');
     }
 }

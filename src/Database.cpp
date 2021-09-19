@@ -8,19 +8,42 @@ Database::Database()
     }
 }
 
-void Database::save(uint8_t data[MAX_CROP])
+void Database::save(uint8_t data[C_SAVE_SIZE])
 {
     for (int i = 0; i < MAX_CROP; i++)
     {
         data[i] = cropThresholdArr[i];
     }
+    for (int i = MAX_CROP, j = 0; i < MAX_CROP + 3; i++)
+    {
+        data[i] = cropArr[j];
+        j++;
+    }
+    for (int i = MAX_CROP + 3, j = 0; i < C_SAVE_SIZE; i++)
+    {
+        data[i] = valveAvailArr[j];
+        j++;
+    }
 }
-void Database::load(uint8_t data[MAX_CROP])
+
+void Database::load(uint8_t data[C_SAVE_SIZE])
 {
+    
     for (int i = 0; i < MAX_CROP; i++)
     {
         cropThresholdArr[i] = data[i];
     }
+    for (int i = MAX_CROP, j = 0; i < MAX_CROP + 3; i++)
+    {
+        cropArr[j] = data[i];
+        j++;
+    }
+    for (int i = MAX_CROP + 3, j = 0; i < C_SAVE_SIZE; i++)
+    {
+        valveAvailArr[j] = data[i];
+        j++;
+    }
+
 }
 
 bool Database::valveStatus(uint8_t _valveNum)

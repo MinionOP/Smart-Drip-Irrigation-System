@@ -10,6 +10,9 @@ constexpr bool OPEN     = 1;
 
 enum ListOfCrop{CORN = 0, BEAN, COTTON, TOMATO, POTATO, TOBACCO, PAPAYA, MAX_CROP};
 
+constexpr uint8_t C_SAVE_SIZE = MAX_CROP + 3 + 3;
+
+
 
 class Database{
 public:
@@ -37,7 +40,6 @@ public:
     void clearRTCFlag(void);
     void enableRTCFlag(void);
 
-
     void clearValveFlag(uint8_t _valveNum);
     void setValveStatus(uint8_t _num, bool _status);
     void setSoilSensor(uint8_t _num, uint8_t _soil);
@@ -55,8 +57,8 @@ public:
     void setPM(bool _isPM);
     void setValveAvailability(uint8_t _valveNum, bool status);
 
-    void save(uint8_t data[MAX_CROP]);
-    void load(uint8_t data[MAX_CROP]);
+    void save(uint8_t data[C_SAVE_SIZE]);
+    void load(uint8_t data[C_SAVE_SIZE]);
 
 private:
     uint8_t valveArr[3] = {0};

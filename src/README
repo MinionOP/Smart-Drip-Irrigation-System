@@ -1,0 +1,59 @@
+//Credits
+/*
+This application uses Open Source components. You can find the links to their 
+open source projects along with licenses information below. We acknowledge and 
+are grateful to these developers for their contributions to open source.
+
+
+ArduinomLiquidCrystal I2C https://github.com/fdebrabander/Arduino-LiquidCrystal-I2C-library
+
+Adafruit Unified Sensor https://github.com/adafruit/Adafruit_Sensor
+Apache License Version 2.0, January 2004 https://github.com/adafruit/Adafruit_Sensor/blob/master/LICENSE.txt
+
+DHT sensor https://github.com/adafruit/DHT-sensor-library
+Copyright (c) 2020 Adafruit Industries
+License (MIT) https://github.com/adafruit/DHT-sensor-library/blob/master/license.txt
+
+RTClib https://github.com/adafruit/RTClib
+Copyright (c) 2019 Adafruit Industries
+License (MIT) https://github.com/adafruit/RTClib/blob/master/license.txt
+*/
+
+//schedule.reorder, next, and locate work. Issue with editing schedule
+
+//------------------------------------------------------------------------------------
+//TO DO:
+//CHECK         Disable and enable valve
+//CHECK         Save data to memory if power loss. Read mem and compare before writing to memory
+//CHECK         Change month/day/year , maybe just day of week
+//CHECK         Reduce Power: Test sleep mode in idle state
+//				              Add a conditional statement for all task if schedule is ENABLE but not active
+//                            all a task every _____ to calculate how long it should stay asleep until next deadline if schedule is ENABLE
+//
+//CHECK         Enable/Disable schedule: Run in fixed interval if schedule is DISABLED
+//							             Run in fixed interval at correct time if schedule is ENABLED
+//							             Attempt to use RTC to trigger an interrupt       
+//              Create an LED array for tasks
+//              Implement code for a low power fan
+//(OPTIONAL)    Increase to 5 soil sensors
+//------------------------------------------------------------------------------------
+
+//Current Consumption when idle:
+/*
+NONE					68.2mA-69mA
+SLEEP_MODE_IDLE 		56mA
+SLEEP_MODE_PWR_SAVE		28.9mA
+SLEEP_MODE_ADC
+SLEEP_MODE_STANDBY
+SLEEP_MODE_PWR_DOWN
+*/
+
+
+//Useful hotkeys
+//Ctrl+Shift+P -> Rebuild IntelliSense
+//Ctrl+K, Ctrl+F: auto format selection
+//Ctrl+K, Ctrl+0: Fold all
+//Ctrl+K, Ctrl+J: Unfold all
+//Alt + Mouse: Multiple line edit
+
+

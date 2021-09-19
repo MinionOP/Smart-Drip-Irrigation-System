@@ -20,6 +20,10 @@ enum Time
     PM = 1
 };
 
+//Num of DaySchedule Variables * Days in a week * Schedule per day. 8 * 7 * 3
+constexpr uint8_t S_SAVE_SIZE     = 168;
+
+
 class Schedule
 {
 public:
@@ -32,8 +36,8 @@ public:
     uint8_t *getInfo(uint8_t day, uint8_t num, uint8_t buffer[8]);
     //uint8_t *getTimeline(uint8_t day, uint8_t buffer[288]);
     bool isDayActive(uint8_t day, uint8_t num);
-    void save(uint8_t data[168]); //Num of DaySchedule Variables * Days in a week * Schedule per day. 8 * 7 * 3
-    void load(uint8_t data[168]);
+    void save(uint8_t data[S_SAVE_SIZE]); 
+    void load(uint8_t data[S_SAVE_SIZE]);
 
     uint8_t *locateClosest(uint8_t day, uint8_t hour, uint8_t min, uint8_t buffer[2]);
     uint8_t* next(uint8_t day, uint8_t buffer[2]);
