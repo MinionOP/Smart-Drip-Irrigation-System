@@ -1,7 +1,5 @@
 # Smart-Drip-Irrigation-System
 
-Credits
-
 This application uses Open Source components. You can find the links to their 
 open source projects along with licenses information below. We acknowledge and 
 are grateful to these developers for their contributions to open source.
