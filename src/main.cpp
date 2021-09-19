@@ -14,42 +14,9 @@
 
 using namespace constants;
 
-//TO DO:
-//Disable and enable valve
-//Save data to memory if power loss. Read mem and compare before writing to memory
-//Change month/day/year , maybe just day of week
-//Reduce Power: Test sleep mode in idle state
-//				Add a conditional statement for all task if schedule is ENABLE but not active
-//              Call a task every _____ to calculate how long it should stay asleep until next deadline if schedule is ENABLE
-//
-//Enable/Disable schedule: 	Run in fixed interval if schedule is DISABLED
-//							Run in fixed interval at correct time if schedule is ENABLED
-//							Attempt to use RTC to trigger an interrupt
-//Implement code for a low power fan
-//Increase to 5 soil sensors
-//Option to adjust number of valve to sensor (1 sensor can control 2 valve, etc)
-
-//Current Consumption when idle:
-/*
-NONE					68.2mA-69mA
-SLEEP_MODE_IDLE 		56mA
-SLEEP_MODE_PWR_SAVE		28.9mA
-SLEEP_MODE_ADC
-SLEEP_MODE_STANDBY
-SLEEP_MODE_PWR_DOWN
-*/
-
-//External Libraries
-//If error after adding library on platformio. Try Ctrl+Shift+P -> Rebuild IntelliSense
-
-//Ctrl+K, Ctrl+F: auto format selection
-//Ctrl+K, Ctrl+0: Fold all
-//Ctrl+K, Ctrl+J: Unfold all
-
 DHT dht(DHT_PIN, DHT11);
 RTC_DS3231 rtc;
-//Need to find usable memory addr
-//AT24C32 mem;
+AT24C32 mem;
 
 UserInterface Interface(0x27, 20, 4);
 
@@ -60,6 +27,7 @@ void vTaskSoilSensor(void *pvParameters);
 void vTaskValve(void *pvParameters);
 void vTaskSaveData(void *pvParameters);
 void vTaskAlarm(void *pvParameters);
+void vTaskSave(void *pvParameters);
 
 
 void vButton_ISR_Handler(void);
@@ -116,33 +84,32 @@ void setup()
 	rtc.clearAlarm(1);
 	rtc.writeSqwPinMode(DS3231_OFF);
 
+	
+	uint8_t len = C_SAVE_SIZE,
+			loadedDataArr[len] = {0};
+
+	mem.read(20,loadedDataArr, len);
+	Interface.database.load(loadedDataArr);
+
+
+	//debugFun();
 
 	xValveSemaphore = xSemaphoreCreateBinary();
 
-	//Stack 128, 256, 400, 512
-	xTaskCreate(vTaskButton, "Button", 400, NULL, 3, &xButtonTaskHandle);
 	xTaskCreate(vTaskTemperature, "Temperature", 400, NULL, 1, NULL);
 	xTaskCreate(vTaskRTC, "RTC", 400, NULL, 2, NULL);
 	xTaskCreate(vTaskSoilSensor, "Soil", 256, NULL, 2, &xSoilTaskHandle);
 	xTaskCreate(vTaskValve, "Valve", 256, NULL, 3, NULL);
-	xTaskCreate(vTaskAlarm, "Alarm", 600, NULL, 3, &xAlarmTaskHandle);
+	xTaskCreate(vTaskButton, "Button", 400, NULL, 3, &xButtonTaskHandle);
+	xTaskCreate(vTaskAlarm, "Alarm", 1000, NULL, 4, &xAlarmTaskHandle);
+	xTaskCreate(vTaskSave, "Save", 400, NULL, 5, &xSaveTaskHandle);
 
-	//xTaskCreate(TaskSaveData, "Save", 400, NULL, 4, &xSaveTaskHandle);
-
-
-	//debugFun();
 
 	vTaskStartScheduler();
 }
 
 void loop()
 {
-	if (!Interface.isIdle() && idleCounter == IDLE_INTERVAL / RTC_INTERVAL)
-	{
-		Interface.idle();
-		idleCounter = 0;
-	}
-	
 	set_sleep_mode(SLEEP_MODE_PWR_SAVE);
 	portENTER_CRITICAL();
 	sleep_enable();
@@ -204,80 +171,85 @@ void vTaskButton(void *pvParameters)
 		if (Interface.isIdle())
 		{
 			Interface.wakeup();
+			vTaskDelay(pdMS_TO_TICKS(BUTTON_DEBOUNCE));
+			ulTaskNotifyTake(pdTRUE, 0);
+			continue;
 		}
-		else
+
+		bool prevScheduleState = Interface.schedule.isEnable(),
+			 toUpdateValve = false,
+			 toUpdateAlarm = false;
+		Interface.update(buttonPressed);
+
+		if (Interface.getCurrentDisplay() == VALVE_SENSOR_LCD)
 		{
-			bool prevScheduleState = Interface.schedule.isEnable(),
-				 toUpdateValve = false,
-				 toUpdateAlarm = false;			
-			Interface.update(buttonPressed);
-
-			if (Interface.getCurrentDisplay() == VALVE_SENSOR_LCD)
+			for (int i = 0; i < 3; i++)
 			{
-				for (int i = 0; i < 3; i++)
+				if (Interface.database.getValveFlag(i) == 1)
 				{
-					if (Interface.database.getValveFlag(i) == 1)
-					{
-						toUpdateValve = true;
-						needWater[i] = 0;
-						Interface.database.clearValveFlag(i);
-					}
+					toUpdateValve = true;
+					needWater[i] = 0;
+					Interface.database.clearValveFlag(i);
 				}
 			}
+		}
 
-			if (toUpdateValve)
-			{
-				xSemaphoreGive(xValveSemaphore);
-			}
+		if (toUpdateValve)
+		{
+			xSemaphoreGive(xValveSemaphore);
+		}
 
-			if (prevScheduleState != Interface.schedule.isEnable() && buttonPressed == SELECT)
+		if (prevScheduleState != Interface.schedule.isEnable() && buttonPressed == SELECT)
+		{
+			if (Interface.schedule.isEnable())
 			{
-				if (Interface.schedule.isEnable())
-				{
-					toUpdateAlarm = true;
-				}
-				else
-				{
-					rtc.clearAlarm(1);
-					vTaskResume(xSoilTaskHandle);
-					isSensorEnabled = true;
-				}
-			}
-
-			if (Interface.schedule.isEnable() && Interface.schedule.isReschedule())
-			{
-				Interface.schedule.clearRescheduleFlag();
 				toUpdateAlarm = true;
 			}
-			if(Interface.database.isRTCFlagEnable()){
-				Interface.database.clearRTCFlag();
-				uint8_t time[2] = {Interface.database.get24Hour(),
-								   Interface.database.getMinute()};
-
-				uint8_t calenderDate[3] = {8,13,21};
-
-				Interface.database.getCalenderDate(calenderDate);
-				// Interface.printToLCD(0, 2, time, 2);
-				// Interface.printToLCD(10, 2, calenderDate, 3);
-
-				rtc.adjust(DateTime(calenderDate[2]+2000, 	//year
-									calenderDate[0], 		//month
-									calenderDate[1], 		//day
-									time[0], 				//24-hour
-									time[1], 				//minute
-									0)						//second
-									);
-
-				Interface.database.setDayOfWeek(rtc.now().dayOfTheWeek());
-
-				if(Interface.schedule.isEnable()){
-					toUpdateAlarm = true;
-				}
-			}
-			if(toUpdateAlarm){
-				xTaskNotifyGive(xAlarmTaskHandle);
+			else
+			{
+				rtc.clearAlarm(1);
+				vTaskResume(xSoilTaskHandle);
+				isSensorEnabled = true;
 			}
 		}
+
+		if (Interface.schedule.isEnable() && Interface.schedule.isReschedule())
+		{
+			Interface.schedule.clearRescheduleFlag();
+			toUpdateAlarm = true;
+		}
+		if (Interface.database.isRTCFlagEnable())
+		{
+			Interface.database.clearRTCFlag();
+			uint8_t time[2] = {Interface.database.get24Hour(),
+							   Interface.database.getMinute()};
+
+			uint8_t calenderDate[3] = {8, 13, 21};
+
+			Interface.database.getCalenderDate(calenderDate);
+			// Interface.printToLCD(0, 2, time, 2);
+			// Interface.printToLCD(10, 2, calenderDate, 3);
+
+			rtc.adjust(DateTime(calenderDate[2] + 2000, //year
+								calenderDate[0],		//month
+								calenderDate[1],		//day
+								time[0],				//24-hour
+								time[1],				//minute
+								0)						//second
+			);
+
+			Interface.database.setDayOfWeek(rtc.now().dayOfTheWeek());
+
+			if (Interface.schedule.isEnable())
+			{
+				toUpdateAlarm = true;
+			}
+		}
+		if (toUpdateAlarm)
+		{
+			xTaskNotifyGive(xAlarmTaskHandle);
+		}
+
 		vTaskDelay(pdMS_TO_TICKS(BUTTON_DEBOUNCE));
 		ulTaskNotifyTake(pdTRUE, 0);
 	}
@@ -358,9 +330,6 @@ void vTaskSoilSensor(void *pvParameters)
 
 		//Serial.println(soilValue);
 		Interface.database.setSoilSensor(0, soilValue);
-		//Turn off sensors
-		//Remove outside later
-		//digitalWrite(SOIL_SENSOR1_POWER_PIN, LOW);
 
 		if (Interface.database.soilSensor(0) < Interface.database.cropThreshold(Interface.database.crop(0)) &&
 			Interface.database.valveStatus(0) == CLOSE)
@@ -381,6 +350,7 @@ void vTaskSoilSensor(void *pvParameters)
 		Interface.update(SOIL);
 
 		// }
+		//Turn off sensors
 		// digitalWrite(SOIL_SENSOR1_POWER_PIN, LOW);
 		// digitalWrite(SOIL_SENSOR2_POWER_PIN, LOW);
 		// digitalWrite(SOIL_SENSOR3_POWER_PIN, LOW);
@@ -395,10 +365,15 @@ void vTaskValve(void *pvParameters)
 	(void)pvParameters;
 
 	//Initalize digital pins for relay
-	//pinMode(RELAY1_PIN, OUTPUT);
+	pinMode(RELAY1_PIN, OUTPUT);
 	//pinMode(RELAY2_PIN, OUTPUT);
 	//pinMode(RELAY3_PIN, OUTPUT);
 
+	digitalWrite(RELAY1_PIN, HIGH);
+	//digitalWrite(RELAY2_PIN, HIGH);
+	//digitalWrite(RELAY3_PIN, HIGH);
+
+	int relayArr[3] = {RELAY1_PIN, RELAY2_PIN, RELAY3_PIN};
 
 	while (true)
 	{
@@ -408,12 +383,14 @@ void vTaskValve(void *pvParameters)
 			{
 				if (needWater[i])
 				{
-					//digitalWrite(RELAY1_PIN, HIGH);
+					if(Interface.database.isValveAvailable(i) && i == 0) //1 relay testing)
+						digitalWrite(relayArr[i], LOW);
 					Interface.database.setValveStatus(i, OPEN);
 				}
 				else
 				{
-					//digitalWrite(RELAY1_PIN, LOW);
+					if(i == 0)
+						digitalWrite(relayArr[i], HIGH);
 					Interface.database.setValveStatus(i, CLOSE);
 				}
 			}
@@ -447,7 +424,18 @@ void vTaskRTC(void *pvParameters)
 		}
 
 		if (!Interface.isIdle())
+		{
 			idleCounter++;
+			if(idleCounter == IDLE_INTERVAL/RTC_INTERVAL){
+				Interface.idle();
+				idleCounter = 0;
+			}
+		}
+		else{
+			if(Interface.isLCDOn()){
+				Interface.idle();
+			}
+		}
 		xTaskDelayUntil(&xLastWakeTime, xTimerFreq);
 	}
 	vTaskDelete(NULL);
@@ -457,28 +445,26 @@ void vTaskAlarm(void *pvParameters)
 {
 	(void)pvParameters;
 
-	//Check if alarm is enable in setup()
+	pinMode(CLOCK_INTERRUPT_PIN,INPUT_PULLUP);
 	attachInterrupt(digitalPinToInterrupt(CLOCK_INTERRUPT_PIN), vAlarm_ISR_Handler, FALLING);
 
+	int debugLED1 = 46;
+
 	pinMode(CLOCK_LED_PIN, OUTPUT);
-	pinMode(RELAY1_PIN, OUTPUT);
+	pinMode(debugLED1, OUTPUT);
 
 	uint8_t time[2] = {0},
 			day = 0,
 			myDay = 0;
 
-	if (Interface.schedule.isEnable())
-	{
-		//If schedule is enabled on start up, enable rtc alarm
-	}
 
 	while (true)
 	{
 		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 		day = rtc.now().dayOfTheWeek();
+		//myDay = Interface.database.getDayOfWeek();
 		myDay = (day == 0) ? 6 : day - 1;
 		//TODO: Consider when user enable schedule during time when it should turn on instantly.
-		//Instead of circling back in reorder table, just stop arming interrupt in schedule.next
 		if (!Interface.schedule.isEnable())
 		{
 			continue;
@@ -486,12 +472,14 @@ void vTaskAlarm(void *pvParameters)
 
 		if (alarmFired)
 		{
-			alarmFired = !alarmFired;
+			alarmFired = false;
 			Interface.schedule.next(myDay, time);
 		}
 		else
 		{
 			Interface.schedule.locateClosest(myDay, rtc.now().hour(), rtc.now().minute(), time);
+			uint8_t buf[5] = {9,9,9,9,9};
+			Interface.printToLCD(0,0,buf,5);
 		}
 
 		Interface.update(SCHEDULE_STATUS);
@@ -513,52 +501,213 @@ void vTaskAlarm(void *pvParameters)
 		uint8_t buffer[5];
 		buffer[0] = myDay;
 
+
+		//-------------------------------------------------
 		Interface.printToLCD(0, 2, time, 2);
 		Interface.printToLCD(0, 3, buffer, 1);
-		//-------------------------------------------------
 
 		if (time[0] == 25)
 		{
-			digitalWrite(RELAY1_PIN, !digitalRead(RELAY1_PIN));
+			digitalWrite(debugLED1, !digitalRead(debugLED1));
 			continue;
 		}
 
 		rtc.clearAlarm(1);
 
 		if (rtc.setAlarm1(
-				DateTime(rtc.now().year(), rtc.now().month(), rtc.now().day(), time[0], time[1], rtc.now().second()),
+				DateTime(rtc.now().year(), rtc.now().month(), rtc.now().day(), time[0], time[1], 0),
 				DS3231_A1_Hour))
 		{
 			digitalWrite(CLOCK_LED_PIN, !digitalRead(CLOCK_LED_PIN));
 		}
+
+
 	}
 	vTaskDelete(xAlarmTaskHandle);
 }
 
+void vTaskSave(void *pvParameters)
+{
+	(void)pvParameters;
+
+	pinMode(MEMW_LED_PIN, OUTPUT);
+
+	TickType_t xLastWakeTime = xTaskGetTickCount();
+	const TickType_t xSaveFreq = pdMS_TO_TICKS(SAVE_INTERVAL);
+
+	uint8_t CROP_START = 0,
+			CROP_END = CROP_START + C_SAVE_SIZE,
+			SCH_START = CROP_END,
+			SCH_END = SCH_START + S_SAVE_SIZE,
+			LEN = SCH_END;
+
+	uint8_t data[LEN] = {0};
+	bool written = false;
+	unsigned int addr_p;
+
+	while (true)
+	{
+		xTaskDelayUntil(&xLastWakeTime, xSaveFreq);
+
+		Interface.database.save(data + CROP_START);
+		Interface.database.save(data + SCH_START);
+		addr_p = 20;
+		
+		for (int i = CROP_START; i < CROP_END; i++)
+		{
+			uint8_t x = mem.read(addr_p);
+			if (x != data[i])
+			{
+				mem.write(addr_p, data[i]);
+				written = true;
+			}
+			addr_p++;
+		}
+
+		if (written)
+		{
+			digitalWrite(MEMW_LED_PIN, HIGH);
+			written = false;
+		}
+		else if (digitalRead(MEMW_LED_PIN))
+		{
+			digitalWrite(MEMW_LED_PIN, LOW);
+		}
+
+	}
+
+	vTaskDelete(NULL);
+}
+
+//Comment out loop when debugging
 void debugFun(void)
 {
+	/*-----------------EEPROM-------------------------------------------
+	uint8_t CROP_START    = 0,
+			CROP_END      = CROP_START + C_SAVE_SIZE,
+			SCH_START     = CROP_END,
+			SCH_END       = SCH_START + S_SAVE_SIZE,
+			LEN 		  = SCH_END;
+
+	uint8_t ADDR_START	  = 20;		
+
+	uint8_t data[LEN] = {0};
+	
+	Interface.database.save(data + CROP_START);
+	Interface.schedule.save(data + SCH_START);
+
+	// uint8_t data2[100];
+	// uint8_t data3[100];
+
+	// for (int i = 0; i < 10; i++)
+	// {
+	// 	data2[i] = 5;
+	// 	data3[i] = 5;
+	// }
+	// Serial.println("");
+	// unsigned int addr_p = ADDR_START;
+	// for(int i=0;i<10;i++){
+	// 	uint8_t x = mem.read(addr_p);
+	// 	Serial.print("addr[" + (String)addr_p + "] " + x + "\t");
+	// 	if(x != data[i]){
+	// 		mem.write((unsigned int)addr_p,data[i]);
+	// 		Serial.println("[" + (String)addr_p + "] " + mem.read(addr_p) + " " + x + " " + data[i]);
+	// 	}
+	// 	else{
+	// 		Serial.println("");
+	// 	}
+	// 	addr_p++;
+	// }
+
+	//mem.write(20,4);
+	uint8_t data2[100] = {0},
+			data3[100] = {0};
+
+	Serial.println("---------");
+
+	for(int i=0;i<100;i++){
+		data3[i] = mem.read(i);
+		Serial.println("[" + (String)i + "] " + data3[i]);
+	}
+	mem.read(0,data2,100);
+	Serial.println("---------");
+	for(int i=0;i<100;i++){
+		Serial.println("[" + (String)i + "] " + data2[i]);
+	}
+
+	for(int i=0;i<100;i++){
+		if(data2[i] != data3[i]){
+			Serial.println("ERROR");
+		}
+	}
+
+	
+	//mem.write(20,1);
+	//Serial.println(mem.read(20));
+	// mem.read(0,data2,100);
+	// mem.read(200,data3,100);
+
+
+	// for(int i=0;i<100;i++){
+	// 	Serial.println((String)i + " " + (String)data2[i]);
+	// }
+
+	// Serial.println("----");
+	// for(int i=0;i<100;i++){
+	// 	Serial.println((String)i + " " + (String)data3[i]);
+	// }
+
+	// for (int i = 0, c = 0; i < LEN; i++)
+	// {
+	// 	if (i < CROP_END)
+	// 	{
+	// 		Serial.println(data[i]);
+	// 		//Serial.println("");
+	// 	}
+	// 	else
+	// 	{
+	// 		Serial.print(data[i]);
+	// 		Serial.print(" ");
+	// 		c++;
+	// 		if (c == 8)
+	// 		{
+	// 			Serial.println("");
+	// 			c = 0;
+	// 		}
+	// 	}
+	//}
+
+	//-----------------------------------------------------------*/
+
+	uint8_t time[2] = {0};
+	Serial.println();
+	Interface.schedule.locateClosest(TUESDAY,12,40,time);
+	Serial.println((String)time[0] + ":" + (String)time[1]);
+	uint8_t counter=  0;
+	while(time[0] != 25 && counter <10){
+		Interface.schedule.next(TUESDAY,time);
+		Serial.println((String)time[0] + ":" + (String)time[1]);
+		counter++;
+	}
+
+
+	/*-----------------------------------------------------
 	// uint8_t _startHr = 7,
 	// 		_startMin = 30,
 	// 		_endHr = 12,
 	// 		_endMin = 30;
 	// bool	_startPM = 1,
 	// 		_endPM = 1;
-
 	// uint8_t _to24Hour1 = Interface.schedule.to24Hour(_startHr, _startPM);
 	// uint8_t _to24Hour2 = Interface.schedule.to24Hour(_endHr, _endPM);
-
 	// uint16_t startPos = _to24Hour1 * 12 + (_startMin/5),
 	//        	 endPos = _to24Hour2 * 12 + (_endMin/5);
-
 	// int duration = 	((int)(endPos - startPos) > 0)?(endPos-startPos):(288-startPos + endPos);
-
 	// Serial.println("o " + String(_to24Hour1));
 	// Serial.println("t " + String(_to24Hour2));
-
 	// Serial.println("\nd " + String(duration));
 	// Serial.println("s " + String(startPos));
 	// Serial.println("e " + String(endPos));
-
 	//--------------------------------------------------------------------------------
 	// uint8_t timelineArr[288];
 	// //Interface.schedule.clear(0,1,1);
@@ -577,25 +726,19 @@ void debugFun(void)
 	// 	}
 	// }
 	//--------------------------------------------------------------------------------
-
 	// uint8_t temp[5] = {9, 10,11,12,13};
 	// _eeprom.write(20, temp, 5);
-
 	//uint8_t data = 0, data2 = 0;
 	// uint8_t dataBuffer[5] = {0};
-	//  _eeprom.read(20,dataBuffer,5);
-
+	// _eeprom.read(20,dataBuffer,5);
 	// Serial.println(dataBuffer[0]);
 	// Serial.println(dataBuffer[1]);
 	// Serial.println(dataBuffer[2]);
 	// Serial.println(dataBuffer[3]);
 	// Serial.println(dataBuffer[4]);
-
 	// uint8_t buffer[189] = {99};
 	// uint8_t buffer2[189] = {99};
-
 	// Interface.schedule.save(buffer);
-
 	// for(int i=0;i<168;i++){
 	// 	if(i%8 == 0 || i==0){
 	// 		Serial.println("");
@@ -603,12 +746,10 @@ void debugFun(void)
 	// 	Serial.print(buffer[i]);
 	// 	Serial.print(" ");
 	// }
-
 	//Debugging Alarm
 	// Serial.println();
 	// uint8_t alarm[2] = {0},
 	// 		buffer[8] = {0};
-
 	// for(int i=0;i<3;i++){
 	// 	Interface.schedule.getInfo(MONDAY,i,buffer);
 	// 	for(int j=0;j<8;j++){
@@ -616,7 +757,6 @@ void debugFun(void)
 	// 	}
 	// 	Serial.println();
 	// }
-
 	// Interface.schedule.locateClosest(MONDAY, 2, 55, alarm);
 	// for (int i = 0; i < 2; i++) {
 	// 	Serial.print((String)alarm[i] + " ");
@@ -627,52 +767,7 @@ void debugFun(void)
 	// 		Serial.print((String)alarm[i] + " ");
 	// 	}
 	// }
+	//--------------------------------------------------------------------------------
+	//----------------------------------------------------------------------------------------*/
+
 }
-
-// void TaskSave(void *pvParameters)
-// {
-// 	(void)pvParameters;
-// 	while (true)
-// 	{
-// 		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-// 		Serial.println("t");
-// 	}
-// 	vTaskDelete(xSaveTaskHandle);
-// }
-
-// void TaskBlink(void *pvParameters)
-// {
-// 	(void)pvParameters;
-// 	while (true)
-// 	{
-// 		if (xSemaphoreTake(xBlinkSemaphore, portMAX_DELAY))
-// 		{
-// 			while (Interface.blinkCursor())
-// 			{
-// 				vTaskDelay(pdMS_TO_TICKS(BLINK_INTERVAL));
-// 			}
-// 		}
-// 	}
-// 	vTaskDelete(NULL);
-// }
-
-//Credits
-/*
-This application uses Open Source components. You can find the links to their 
-open source projects along with licenses information below. We acknowledge and 
-are grateful to these developers for their contributions to open source.
-
-
-ArduinomLiquidCrystal I2C https://github.com/fdebrabander/Arduino-LiquidCrystal-I2C-library
-
-Adafruit Unified Sensor https://github.com/adafruit/Adafruit_Sensor
-Apache License Version 2.0, January 2004 https://github.com/adafruit/Adafruit_Sensor/blob/master/LICENSE.txt
-
-DHT sensor https://github.com/adafruit/DHT-sensor-library
-Copyright (c) 2020 Adafruit Industries
-License (MIT) https://github.com/adafruit/DHT-sensor-library/blob/master/license.txt
-
-RTClib https://github.com/adafruit/RTClib
-Copyright (c) 2019 Adafruit Industries
-License (MIT) https://github.com/adafruit/RTClib/blob/master/license.txt
-*/
