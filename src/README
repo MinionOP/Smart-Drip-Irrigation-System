@@ -28,7 +28,7 @@ License (MIT) https://github.com/adafruit/RTClib/blob/master/license.txt
 //CHECK         Change month/day/year , maybe just day of week
 //CHECK         Reduce Power: Test sleep mode in idle state
 //				              Add a conditional statement for all task if schedule is ENABLE but not active
-//                            all a task every _____ to calculate how long it should stay asleep until next deadline if schedule is ENABLE
+//                            call a task every _____ to calculate how long it should stay asleep until next deadline if schedule is ENABLE
 //
 //CHECK         Enable/Disable schedule: Run in fixed interval if schedule is DISABLED
 //							             Run in fixed interval at correct time if schedule is ENABLED

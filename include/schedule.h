@@ -41,13 +41,21 @@ public:
 
     uint8_t *locateClosest(uint8_t day, uint8_t hour, uint8_t min, uint8_t buffer[2]);
     uint8_t* next(uint8_t day, uint8_t buffer[2]);
+
+    void setDeadline(uint8_t buffer[2]);
+    uint8_t *getDeadline(uint8_t buffer[2], bool hour24 = false);
     void disable(void);
     void enable(void);
     void toggleSchedule(void);
     bool isEnable(void);
     bool isRunning(void);
     bool isReschedule(void);
+    bool isDeadline(void);
+    void enableDeadlineFlag(void);
+    void enableRunningFlag(void);
     void clearRescheduleFlag(void);
+    void clearDeadlineFlag(void);
+    void clearRunningFlag(void);
 
     uint8_t getActiveDay(void);
     uint8_t getActiveNum(void);
@@ -68,12 +76,15 @@ private:
 
     DaySchedule scheduleTable[NUM_DAY][3];
     uint8_t scheduleOrder[7][3] = {0};
+    uint8_t deadline[2] = {0};
     uint8_t activeNum = 0;
     uint8_t activeDay = 0;
     bool scheduleFlag = 0;
+    bool deadlineFlag = false;
     bool activeFlag = 0;
     bool isInitial = true;
     bool reschedule = false;
+    bool runningFlag = false;
 
     //Return 0 if first set is earlier
     bool compare(uint8_t hour1, uint8_t minute1, bool pm1, uint8_t hour2, uint8_t minute2, bool pm2);
@@ -82,6 +93,7 @@ private:
     void reorder(uint8_t day, uint8_t num, uint8_t hour, uint8_t min, bool pm);
 
     uint8_t to24Hour(uint8_t hour, bool pm);
+    uint8_t* to12Hour(uint8_t hour, uint8_t buffer[2]);
     uint16_t timelineSize(uint8_t day);
 };
 

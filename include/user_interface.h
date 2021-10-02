@@ -40,7 +40,8 @@ enum Type
     SELECT,
     TIME,
     TEMPERATURE,
-    SCHEDULE_STATUS
+    SCHEDULE_STATUS,
+    DEADLINE
 };
 
 const uint16_t BLINK_INTERVAL = 1500;
@@ -53,7 +54,7 @@ public:
 
     UserInterface(uint8_t lcd_addr, uint8_t lcd_cols, uint8_t lcd_rows);
     void begin(void);
-    void update(uint8_t type, uint8_t num = 10);
+    void updateLCD(uint8_t type, uint8_t num = 10);
     void printDisplay(uint8_t display);
     void printToLCD(uint8_t col, uint8_t row, uint8_t buffer[20], uint8_t len);
 

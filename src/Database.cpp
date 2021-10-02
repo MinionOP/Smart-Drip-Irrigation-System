@@ -123,11 +123,19 @@ bool Database::isValveAvailable(uint8_t _valveNum)
 
 void Database::setValveAvailability(uint8_t _valveNum, bool status)
 {
+    /*
+        Table:
+        Transition                 Key 
+        0->0 or 1->1 No change     0
+        0->1         Opening       1
+        1->0         Closing
+    */
     if (valveAvailArr[_valveNum] == 1 && status == 0)
     {
         valveFlagArr[_valveNum] = 1;
     }
     valveAvailArr[_valveNum] = status;
+    
 }
 
 bool Database::getValveFlag(uint8_t _valveNum)

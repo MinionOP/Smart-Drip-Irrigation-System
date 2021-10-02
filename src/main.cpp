@@ -31,9 +31,12 @@ void vTaskSave(void *pvParameters);
 
 
 void vButton_ISR_Handler(void);
+void vButtonLED_ISR_Handler(void);
 void vAlarm_ISR_Handler(void);
 
 void debugFun(void);
+void digitalWriteLED(uint8_t pin, uint8_t val);
+void writeAllLED(bool turnOn);
 
 SemaphoreHandle_t xButtonSemaphore,
 	xValveSemaphore,
@@ -49,9 +52,10 @@ volatile uint8_t buttonPressed = 0,
 
 volatile bool 	 needWater[3] = {false},
 			  	 alarmFired = false,
-			  	 isSensorEnabled = true;
+			  	 isSensorEnabled = true,
+				 isLEDArrayEnabled = true,
+				 ledArray[5] = {0};
 
-//bool needWater = false;
 
 void setup()
 {
@@ -91,18 +95,20 @@ void setup()
 	mem.read(20,loadedDataArr, len);
 	Interface.database.load(loadedDataArr);
 
+	pinMode(CLOCK_LED,OUTPUT);
+
+
 
 	//debugFun();
-
 	xValveSemaphore = xSemaphoreCreateBinary();
 
 	xTaskCreate(vTaskTemperature, "Temperature", 400, NULL, 1, NULL);
 	xTaskCreate(vTaskRTC, "RTC", 400, NULL, 2, NULL);
-	xTaskCreate(vTaskSoilSensor, "Soil", 256, NULL, 2, &xSoilTaskHandle);
+	xTaskCreate(vTaskSoilSensor, "Soil", 400, NULL, 2, &xSoilTaskHandle);
 	xTaskCreate(vTaskValve, "Valve", 256, NULL, 3, NULL);
 	xTaskCreate(vTaskButton, "Button", 400, NULL, 3, &xButtonTaskHandle);
-	xTaskCreate(vTaskAlarm, "Alarm", 1000, NULL, 4, &xAlarmTaskHandle);
-	xTaskCreate(vTaskSave, "Save", 400, NULL, 5, &xSaveTaskHandle);
+	xTaskCreate(vTaskAlarm, "Alarm", 1280, NULL, 4, &xAlarmTaskHandle);
+	//xTaskCreate(vTaskSave, "Save", 400, NULL, 5, &xSaveTaskHandle);
 
 
 	vTaskStartScheduler();
@@ -144,6 +150,12 @@ void vButton_ISR_Handler(void)
 	}
 }
 
+void vButtonLED_ISR_Handler(void){
+	isLEDArrayEnabled = !isLEDArrayEnabled;
+	writeAllLED(isLEDArrayEnabled);
+
+}
+
 void vAlarm_ISR_Handler(void)
 {
 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -162,8 +174,10 @@ void vTaskButton(void *pvParameters)
 	pinMode(BUTTON_DOWN_PIN, INPUT_PULLUP);
 	pinMode(BUTTON_UP_PIN, INPUT_PULLUP);
 	pinMode(BUTTON_SELECT_PIN, INPUT_PULLUP);
+	pinMode(BUTTON_LED_INT_PIN, INPUT_PULLUP);
 
 	attachInterrupt(digitalPinToInterrupt(BUTTON_INT_PIN), vButton_ISR_Handler, FALLING);
+	attachInterrupt(digitalPinToInterrupt(BUTTON_LED_INT_PIN), vButtonLED_ISR_Handler, FALLING);
 
 	while (true)
 	{
@@ -179,7 +193,7 @@ void vTaskButton(void *pvParameters)
 		bool prevScheduleState = Interface.schedule.isEnable(),
 			 toUpdateValve = false,
 			 toUpdateAlarm = false;
-		Interface.update(buttonPressed);
+		Interface.updateLCD(buttonPressed);
 
 		if (Interface.getCurrentDisplay() == VALVE_SENSOR_LCD)
 		{
@@ -188,7 +202,7 @@ void vTaskButton(void *pvParameters)
 				if (Interface.database.getValveFlag(i) == 1)
 				{
 					toUpdateValve = true;
-					needWater[i] = 0;
+					needWater[i] = false;
 					Interface.database.clearValveFlag(i);
 				}
 			}
@@ -208,8 +222,10 @@ void vTaskButton(void *pvParameters)
 			else
 			{
 				rtc.clearAlarm(1);
+				digitalWriteLED(CLOCK_LED,LOW);
 				vTaskResume(xSoilTaskHandle);
 				isSensorEnabled = true;
+
 			}
 		}
 
@@ -277,7 +293,7 @@ void vTaskTemperature(void *pvParameters)
 		else
 		{
 			Interface.database.setTemperature(temp);
-			Interface.update(TEMPERATURE);
+			Interface.updateLCD(TEMPERATURE);
 		}
 		xTaskDelayUntil(&xLastWakeTime, xTemperatureFreq);
 	}
@@ -298,6 +314,17 @@ void vTaskSoilSensor(void *pvParameters)
 	// digitalWrite(SOIL_SENSOR2_POWER_PIN, LOW);
 	// digitalWrite(SOIL_SENSOR3_POWER_PIN, LOW);
 
+	uint8_t s_pin[NUM_SOIL_SENSOR] = {SOIL_SENSOR1_PIN, SOIL_SENSOR2_PIN, SOIL_SENSOR3_PIN};
+
+	uint16_t sensor_lowerBound[NUM_SOIL_SENSOR] = {305,305,305},
+			sensor_upperBound[NUM_SOIL_SENSOR] = {590,590,590},
+			lowestBound = 250, 
+			highestBound = 650,
+			moisture_value;
+
+	bool toUpdate;
+
+
 	TickType_t xLastWakeTime = xTaskGetTickCount();
 	const TickType_t xSoilSensorFreq = pdMS_TO_TICKS(SOIL_SENSOR_INTERVAL);
 
@@ -317,44 +344,73 @@ void vTaskSoilSensor(void *pvParameters)
 		//digitalWrite(SOIL_SENSOR3_POWER_PIN, HIGH);
 		//Wait until power is stable
 		vTaskDelay(pdMS_TO_TICKS(150));
-		// for(int i=0;i<3;i++){
-		//Read Soil Sensors
-		// uint16_t soilValue = analogRead((i == 0) ? A0 : (i == 1) ? A1
-		// 														 : A2);
-		uint16_t soilValue = 500;
-		bool toUpdate = false;
-
-		soilValue = max(soilValue, WATER_VALUE);
-		soilValue = min(soilValue, AIR_VALUE);
-		soilValue = map(soilValue, AIR_VALUE, WATER_VALUE, 0, 100);
-
-		//Serial.println(soilValue);
-		Interface.database.setSoilSensor(0, soilValue);
-
-		if (Interface.database.soilSensor(0) < Interface.database.cropThreshold(Interface.database.crop(0)) &&
-			Interface.database.valveStatus(0) == CLOSE)
+		//for (int i = 0; i < NUM_SOIL_SENSOR; i++)
+		for (int i = 0; i < 3; i++)
 		{
-			needWater[0] = true;
-			toUpdate = true;
-		}
-		else if (Interface.database.soilSensor(0) > Interface.database.cropThreshold(Interface.database.crop(0)) &&
-				 Interface.database.valveStatus(0) == OPEN)
-		{
-			needWater[0] = false;
-			toUpdate = true;
-		}
+			if (!Interface.database.isValveAvailable(i))
+				continue;
+			
 
-		if(toUpdate){
-			xSemaphoreGive(xValveSemaphore);
-		}
-		Interface.update(SOIL);
+			//Read Soil Sensors
+			//uint16_t moisture_value = analogRead(s_pin[i]);
+			moisture_value = 500;
+			toUpdate = false;
 
-		// }
+			if (moisture_value < sensor_lowerBound[i])
+			{
+				if (moisture_value > lowestBound)
+				{
+					sensor_lowerBound[i] = moisture_value;
+				}
+				else
+				{
+					moisture_value = sensor_lowerBound[i];
+				}
+			}
+
+			if (moisture_value > sensor_upperBound[i])
+			{
+				if (moisture_value < highestBound)
+				{
+					sensor_upperBound[i] = moisture_value;
+				}
+				else
+				{
+					moisture_value = sensor_upperBound[i];
+				}
+			}
+
+			// moisture_value = max(moisture_value, sensor_lowerBound[i]);
+			// moisture_value = min(moisture_value, sensor_upperBound[i]);
+			moisture_value = map(moisture_value, sensor_upperBound[i], sensor_lowerBound[i], 0, 100);
+
+			//Serial.println(moisture_value);
+			Interface.database.setSoilSensor(i, moisture_value);
+
+			if (Interface.database.soilSensor(i) < Interface.database.cropThreshold(Interface.database.crop(i)) &&
+				Interface.database.valveStatus(i) == CLOSE)
+			{
+				needWater[i] = true;
+				toUpdate = true;
+			}
+			else if (Interface.database.soilSensor(i) > Interface.database.cropThreshold(Interface.database.crop(i)) &&
+					 Interface.database.valveStatus(i) == OPEN)
+			{
+				needWater[i] = false;
+				toUpdate = true;
+			}
+
+			if (toUpdate)
+			{
+				xSemaphoreGive(xValveSemaphore);
+			}
+		}
 		//Turn off sensors
 		// digitalWrite(SOIL_SENSOR1_POWER_PIN, LOW);
 		// digitalWrite(SOIL_SENSOR2_POWER_PIN, LOW);
 		// digitalWrite(SOIL_SENSOR3_POWER_PIN, LOW);
 
+		Interface.updateLCD(SOIL);
 		xTaskDelayUntil(&xLastWakeTime, xSoilSensorFreq);
 	}
 	vTaskDelete(NULL);
@@ -364,37 +420,45 @@ void vTaskValve(void *pvParameters)
 {
 	(void)pvParameters;
 
+	//Initalize digital pins for valves' LED
+	pinMode(VALVE_1_LED, OUTPUT);
+	pinMode(VALVE_2_LED, OUTPUT);
+	pinMode(VALVE_3_LED, OUTPUT);
+
 	//Initalize digital pins for relay
-	pinMode(RELAY1_PIN, OUTPUT);
-	//pinMode(RELAY2_PIN, OUTPUT);
-	//pinMode(RELAY3_PIN, OUTPUT);
+	pinMode(RELAY_1_PIN, OUTPUT);
+	pinMode(RELAY_2_PIN, OUTPUT);
+	pinMode(RELAY_3_PIN, OUTPUT);
 
-	digitalWrite(RELAY1_PIN, HIGH);
-	//digitalWrite(RELAY2_PIN, HIGH);
-	//digitalWrite(RELAY3_PIN, HIGH);
+	digitalWrite(RELAY_1_PIN, HIGH);
+	digitalWrite(RELAY_2_PIN, HIGH);
+	digitalWrite(RELAY_3_PIN, HIGH);
+	
 
-	int relayArr[3] = {RELAY1_PIN, RELAY2_PIN, RELAY3_PIN};
+	uint8_t relayArr[3] = {RELAY_1_PIN, RELAY_2_PIN, RELAY_3_PIN},
+			valveLEDArr[3] = {VALVE_1_LED, VALVE_2_LED, VALVE_3_LED};
 
 	while (true)
 	{
 		if (xSemaphoreTake(xValveSemaphore, portMAX_DELAY))
 		{
-			for (int i = 0; i < MAX_SOIL_SENSOR; i++)
+			//for (int i = 0; i < NUM_VALVE; i++)
+			for (int i = 0; i < 3; i++)
 			{
-				if (needWater[i])
+				if (needWater[i] && Interface.database.isValveAvailable(i))
 				{
-					if(Interface.database.isValveAvailable(i) && i == 0) //1 relay testing)
-						digitalWrite(relayArr[i], LOW);
+					digitalWrite(relayArr[i], LOW);
+					digitalWriteLED(valveLEDArr[i], HIGH);
 					Interface.database.setValveStatus(i, OPEN);
 				}
 				else
 				{
-					if(i == 0)
-						digitalWrite(relayArr[i], HIGH);
+					digitalWrite(relayArr[i], HIGH);
+					digitalWriteLED(valveLEDArr[i], LOW);
 					Interface.database.setValveStatus(i, CLOSE);
 				}
 			}
-			Interface.update(VALVE);
+			Interface.updateLCD(VALVE);
 		}
 	}
 	vTaskDelete(NULL);
@@ -417,7 +481,7 @@ void vTaskRTC(void *pvParameters)
 								   rtc.now().minute(),
 								   rtc.now().isPM());
 		bool changed = Interface.database.setDayOfWeek(rtc.now().dayOfTheWeek());
-		Interface.update(TIME);
+		Interface.updateLCD(TIME);
 		if (changed)
 		{
 			xTaskNotifyGive(xAlarmTaskHandle);
@@ -444,14 +508,9 @@ void vTaskRTC(void *pvParameters)
 void vTaskAlarm(void *pvParameters)
 {
 	(void)pvParameters;
-
 	pinMode(CLOCK_INTERRUPT_PIN,INPUT_PULLUP);
 	attachInterrupt(digitalPinToInterrupt(CLOCK_INTERRUPT_PIN), vAlarm_ISR_Handler, FALLING);
 
-	int debugLED1 = 46;
-
-	pinMode(CLOCK_LED_PIN, OUTPUT);
-	pinMode(debugLED1, OUTPUT);
 
 	uint8_t time[2] = {0},
 			day = 0,
@@ -462,14 +521,17 @@ void vTaskAlarm(void *pvParameters)
 	{
 		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 		day = rtc.now().dayOfTheWeek();
-		//myDay = Interface.database.getDayOfWeek();
 		myDay = (day == 0) ? 6 : day - 1;
-		//TODO: Consider when user enable schedule during time when it should turn on instantly.
 		if (!Interface.schedule.isEnable())
 		{
+			
+			Interface.updateLCD(SCHEDULE_STATUS);
+			digitalWriteLED(CLOCK_LED,LOW);
+			Interface.schedule.clearDeadlineFlag();
 			continue;
 		}
 
+		digitalWriteLED(CLOCK_LED,HIGH);
 		if (alarmFired)
 		{
 			alarmFired = false;
@@ -478,12 +540,9 @@ void vTaskAlarm(void *pvParameters)
 		else
 		{
 			Interface.schedule.locateClosest(myDay, rtc.now().hour(), rtc.now().minute(), time);
-			uint8_t buf[5] = {9,9,9,9,9};
-			Interface.printToLCD(0,0,buf,5);
 		}
 
-		Interface.update(SCHEDULE_STATUS);
-
+		Interface.updateLCD(SCHEDULE_STATUS);
 		if (!Interface.schedule.isRunning() && isSensorEnabled)
 		{	
 			vTaskSuspend(xSoilTaskHandle);
@@ -498,27 +557,30 @@ void vTaskAlarm(void *pvParameters)
 		}
 
 		//-------------------------------------------------
-		uint8_t buffer[5];
-		buffer[0] = myDay;
+		// uint8_t buffer[5];
+		// buffer[0] = myDay;
 
 
 		//-------------------------------------------------
-		Interface.printToLCD(0, 2, time, 2);
-		Interface.printToLCD(0, 3, buffer, 1);
+		// Interface.printToLCD(0, 2, time, 2);
+		// Interface.printToLCD(0, 3, buffer, 1);
 
 		if (time[0] == 25)
 		{
-			digitalWrite(debugLED1, !digitalRead(debugLED1));
+			//Could be end of schedule
+			//digitalWrite(debugLED1, !digitalRead(debugLED1));
+			//Interface.schedule.clearRunningFlag();
+			Interface.schedule.clearDeadlineFlag();
 			continue;
 		}
 
 		rtc.clearAlarm(1);
-
-		if (rtc.setAlarm1(
-				DateTime(rtc.now().year(), rtc.now().month(), rtc.now().day(), time[0], time[1], 0),
-				DS3231_A1_Hour))
+		//3:03pm BUG
+		if (rtc.setAlarm1(DateTime(rtc.now().year(), rtc.now().month(), rtc.now().day(), time[0], time[1], 0),DS3231_A1_Hour))
 		{
-			digitalWrite(CLOCK_LED_PIN, !digitalRead(CLOCK_LED_PIN));
+			Interface.schedule.setDeadline(time);
+			Interface.updateLCD(DEADLINE);
+			Interface.schedule.enableDeadlineFlag();
 		}
 
 
@@ -529,8 +591,7 @@ void vTaskAlarm(void *pvParameters)
 void vTaskSave(void *pvParameters)
 {
 	(void)pvParameters;
-
-	pinMode(MEMW_LED_PIN, OUTPUT);
+	pinMode(MEMW_LED, OUTPUT);
 
 	TickType_t xLastWakeTime = xTaskGetTickCount();
 	const TickType_t xSaveFreq = pdMS_TO_TICKS(SAVE_INTERVAL);
@@ -549,6 +610,11 @@ void vTaskSave(void *pvParameters)
 	{
 		xTaskDelayUntil(&xLastWakeTime, xSaveFreq);
 
+		if(written){
+			digitalWrite(MEMW_LED, LOW);
+			written = false;
+		}
+
 		Interface.database.save(data + CROP_START);
 		Interface.database.save(data + SCH_START);
 		addr_p = 20;
@@ -558,25 +624,44 @@ void vTaskSave(void *pvParameters)
 			uint8_t x = mem.read(addr_p);
 			if (x != data[i])
 			{
+				digitalWriteLED(MEMW_LED, HIGH);
 				mem.write(addr_p, data[i]);
 				written = true;
 			}
 			addr_p++;
 		}
-
-		if (written)
-		{
-			digitalWrite(MEMW_LED_PIN, HIGH);
-			written = false;
-		}
-		else if (digitalRead(MEMW_LED_PIN))
-		{
-			digitalWrite(MEMW_LED_PIN, LOW);
-		}
-
 	}
 
 	vTaskDelete(NULL);
+}
+
+void digitalWriteLED(uint8_t pin, uint8_t val){
+	uint8_t i = (pin == VALVE_1_LED)? 0:
+				(pin == VALVE_2_LED)? 1:
+				(pin == VALVE_3_LED)? 2:
+				(pin == MEMW_LED)?	  3:
+				4;
+	ledArray[i] = val;
+	if(isLEDArrayEnabled){
+		digitalWrite(pin, val);
+	}
+}
+
+void writeAllLED(bool turnOn){
+	if(turnOn == false){
+		digitalWrite(VALVE_1_LED, LOW);
+		digitalWrite(VALVE_2_LED, LOW);
+		digitalWrite(VALVE_3_LED, LOW);
+		digitalWrite(MEMW_LED, LOW);
+		digitalWrite(CLOCK_LED, LOW);
+	}
+	else{
+		digitalWrite(VALVE_1_LED, ledArray[0]);
+		digitalWrite(VALVE_2_LED, ledArray[1]);
+		digitalWrite(VALVE_3_LED, ledArray[2]);		
+		digitalWrite(MEMW_LED, ledArray[3]);
+		digitalWrite(CLOCK_LED, ledArray[4]);
+	}
 }
 
 //Comment out loop when debugging
@@ -681,14 +766,20 @@ void debugFun(void)
 
 	uint8_t time[2] = {0};
 	Serial.println();
-	Interface.schedule.locateClosest(TUESDAY,12,40,time);
+	Serial.println(Interface.schedule.isRunning());
+	Interface.schedule.locateClosest(SATURDAY,10,40,time);
+	Serial.println(Interface.schedule.isRunning());
 	Serial.println((String)time[0] + ":" + (String)time[1]);
 	uint8_t counter=  0;
+
 	while(time[0] != 25 && counter <10){
-		Interface.schedule.next(TUESDAY,time);
+		Interface.schedule.next(SATURDAY,time);
 		Serial.println((String)time[0] + ":" + (String)time[1]);
 		counter++;
 	}
+	Serial.println(Interface.schedule.isRunning());
+
+
 
 
 	/*-----------------------------------------------------

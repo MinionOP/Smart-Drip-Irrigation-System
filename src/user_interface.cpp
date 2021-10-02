@@ -38,7 +38,7 @@ void UserInterface::begin(void)
     lcd.begin();
     lcd.backlight();
 }
-void UserInterface::update(uint8_t type, uint8_t num)
+void UserInterface::updateLCD(uint8_t type, uint8_t num)
 {
     switch (type)
     {
@@ -160,9 +160,16 @@ void UserInterface::update(uint8_t type, uint8_t num)
                 lcd.print("SD");
             }
         }
-        //lcdSP(7,3,"ZCGa");
 
         return;
+    }
+    case DEADLINE:
+    {
+        if(currentDisplay == SCHEDULE_LCD && cursor[ROW] == 0 && schedule.isDeadline()){
+            uint8_t buffer[2];
+            schedule.getDeadline(buffer);
+            printTime(buffer[0], buffer[1], buffer[2], 11, 3);
+        }
     }
     }
 }
@@ -503,9 +510,16 @@ void UserInterface::printTimeLCD(void)
 void UserInterface::printScheduleLCD(void)
 {
 
-    if (currentDisplay == SCHEDULE_LCD && cursor[ROW] == 0 && page == 0 && pressed == 1)
+    if (currentDisplay == SCHEDULE_LCD && cursor[ROW] == 0 && page == 0 && pressed == 1 && !schedule.isDeadline())
     {
-        (schedule.isEnable()) ? lcdSP(8, 2, "ENABLED ") : lcdSP(8, 2, "DISABLED");
+        if(schedule.isDeadline() && !schedule.isEnable()){
+            lcdSP(0, 1, " M | Scheduling");
+            lcdSP(0, 2, " T | is DISABLED ");
+            lcdSP(0, 3, " W |            ");
+        }
+        else{
+            (schedule.isEnable()) ? lcdSP(8, 2, "ENABLED ") : lcdSP(8, 2, "DISABLED ");
+        }
         return;
     }
 
@@ -515,16 +529,25 @@ void UserInterface::printScheduleLCD(void)
     {
     case 0:
     {
-        //(!skipMarker) ? lcdSP(0, 0, ">M |") : lcdSP(0, 0, " M |");
         (!skipMarker) ? lcdSP(0, 0, ">Enable/Disable") : lcdSP(0, 0, " Enable/Disable");
-        (schedule.isEnable()) ? lcdSP(8, 2, "ENABLED ") : lcdSP(8, 2, "DISABLED");
 
-        lcdSP(0, 1, " M | Scheduling");
+        if (schedule.isDeadline())
+        {
+            lcdSP(0, 1, " M | Is ENABLED");
+            lcdSP(0, 2, " T | Next checkpoint");
+            lcdSP(0, 3, " W | is at");
+            uint8_t buffer[3] = {0};
+            schedule.getDeadline(buffer);
+            printTime(buffer[0], buffer[1], buffer[2], 11, 3);
+        }
+        else{
+            lcdSP(0, 1, " M | Scheduling");
+            lcdSP(0, 2, " T | is");
+            lcdSP(0, 3, " W |");
+            (schedule.isEnable()) ? lcdSP(8, 2, "ENABLED ") : lcdSP(8, 2, "DISABLED");
+        }
 
-        lcdSP(0, 2, " T | is");
-        lcdSP(0, 3, " W |");
         lcd.setCursor(19, 3);
-        //lcd.write(0);
         lcd.print("v");
 
         break;
@@ -764,7 +787,7 @@ void UserInterface::printSchedule(uint8_t day, uint8_t startNum, uint8_t endNum,
         else if (currentDisplay == SCHEDULE_LCD2 || currentDisplay == SCHEDULE_LCD)
         {
             lcd.setCursor((currentDisplay == SCHEDULE_LCD) ? col + 1 : col, row);
-            lcd.print("No entry found");
+            lcd.print("No entry found ");
             row += 1;
         }
     }
@@ -972,10 +995,22 @@ void UserInterface::updateCursor(int8_t direction)
             {
                 if (cursor[ROW] == 0 && page == 0)
                 {
-                    lcdSP(4, 1, " Scheduling     ");
-                    lcdSP(4, 2, " is             ");
-                    (schedule.isEnable()) ? lcdSP(8, 2, "ENABLED ") : lcdSP(8, 2, "DISABLED");
-                    lcdSP(5, 3, "               ");
+                    if(!schedule.isDeadline())
+                    {
+                        lcdSP(4, 1, " Scheduling     ");
+                        lcdSP(4, 2, " is             ");
+                        (schedule.isEnable()) ? lcdSP(8, 2, "ENABLED ") : lcdSP(8, 2, "DISABLED");
+                        lcdSP(5, 3, "               ");
+                    }
+                    else{
+                        lcdSP(4, 1, " Is ENABLED");
+                        lcdSP(4, 2, " Next checkpoint");
+                        lcdSP(5, 3, "               ");
+                        lcdSP(4, 3, " is at");
+                        uint8_t buffer[3] = {0};
+                        schedule.getDeadline(buffer);
+                        printTime(buffer[0], buffer[1], buffer[2], 11, 3);
+                    }
                 }
                 return;
             }
@@ -1647,7 +1682,8 @@ void UserInterface::selectButton(void)
                 hour2 == 0 ||
                 (hour1 == hour2 && min1 == min2 && pm1 == pm2) ||
                 (hour1 > hour2 && pm1 == 1 && pm2 == 0) ||
-                (hour1 >= hour2 && min1 > min2 && pm1 == pm2))
+                (hour1 >= hour2 && min1 >= min2 && pm1 == pm2)
+                )
             {
                 lcdSP(11, 3, "Invalid");
             }
