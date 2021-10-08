@@ -178,10 +178,6 @@ uint8_t UserInterface::getCurrentDisplay(void)
 {
     return currentDisplay;
 }
-uint8_t UserInterface::getCursorPosition(uint8_t type)
-{
-    return cursor[type];
-}
 
 void UserInterface::AddMenuInfo(uint8_t display, uint8_t _initialPos, uint8_t _totalRows, uint8_t _totalPages, uint8_t _lastPos, bool _isCircular, bool _cursorType)
 {
@@ -1488,6 +1484,9 @@ void UserInterface::selectButton(void)
                                          globalBuffer[12] * 10 + globalBuffer[13],
                                          globalBuffer[14] * 10 + globalBuffer[15]);
 
+                // uint8_t s[3] = {0};
+                // database.getCalenderDate(s);
+                // printToLCD(0,2,s,3);
                 database.enableRTCFlag();
             }
             page = 0;
@@ -1584,7 +1583,6 @@ void UserInterface::selectButton(void)
         bool toUpdateSchedule = 0;
         if (cursor[ROW] == 3)
         {
-
             for (int i = 0; i < 10; i++)
             {
                 if (globalBuffer[i] != globalBuffer[i + 10])
@@ -1594,14 +1592,14 @@ void UserInterface::selectButton(void)
                 }
             }
 
-            if (toUpdateSchedule == true)
-            {
-                lcdSP(9, 2, "true");
-            }
-            else
-            {
-                lcdSP(9, 2, "false");
-            }
+            // if (toUpdateSchedule == true)
+            // {
+            //     lcdSP(9, 2, "true");
+            // }
+            // else
+            // {
+            //     lcdSP(9, 2, "false");
+            // }
 
             if (toUpdateSchedule == true)
             {
@@ -1617,7 +1615,12 @@ void UserInterface::selectButton(void)
                 );
                 if (boolValue == false)
                 {
-                    lcdSP(9, 3, "Failed");
+                    // lcd.clear();
+                    // lcdSP(0, 0, "Cause of error: ");
+                    // lcdSP(0, 1, "Adding to Schedule");
+                    // lcdSP(0, 2, "Do: Please restart");
+                    // lcdSP(4, 3, "device");
+                    printScheduleLCD2();
                     break;
                 }
             }
@@ -1669,8 +1672,7 @@ void UserInterface::selectButton(void)
         }
         else if (cursor[COLUMN] == 19 && menu[currentDisplay].cursorType == 1)
         {
-            //TODO: Adding time validation
-            //---------------------------
+
             uint8_t hour1 = globalBuffer[0] * 10 + globalBuffer[1],
                     min1 = globalBuffer[2] * 10 + globalBuffer[3],
                     pm1 = globalBuffer[4],
@@ -1680,8 +1682,9 @@ void UserInterface::selectButton(void)
 
             if (hour1 == 0 || 
                 hour2 == 0 ||
+                (pm1 == 1 && pm2 == 0 && (hour2 != 12 || min2 != 0)) ||
                 (hour1 == hour2 && min1 == min2 && pm1 == pm2) ||
-                (hour1 > hour2 && pm1 == 1 && pm2 == 0) ||
+                (hour1 > hour2 && pm1 == 1 && pm2 == 0 && (hour2 != 12 || min2 != 0)) ||
                 (hour1 >= hour2 && min1 >= min2 && pm1 == pm2)
                 )
             {

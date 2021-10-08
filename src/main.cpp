@@ -108,7 +108,7 @@ void setup()
 	xTaskCreate(vTaskValve, "Valve", 256, NULL, 3, NULL);
 	xTaskCreate(vTaskButton, "Button", 400, NULL, 3, &xButtonTaskHandle);
 	xTaskCreate(vTaskAlarm, "Alarm", 1280, NULL, 4, &xAlarmTaskHandle);
-	//xTaskCreate(vTaskSave, "Save", 400, NULL, 5, &xSaveTaskHandle);
+	xTaskCreate(vTaskSave, "Save", 400, NULL, 5, &xSaveTaskHandle);
 
 
 	vTaskStartScheduler();
@@ -240,7 +240,7 @@ void vTaskButton(void *pvParameters)
 			uint8_t time[2] = {Interface.database.get24Hour(),
 							   Interface.database.getMinute()};
 
-			uint8_t calenderDate[3] = {8, 13, 21};
+			uint8_t calenderDate[3] = {0};
 
 			Interface.database.getCalenderDate(calenderDate);
 			// Interface.printToLCD(0, 2, time, 2);
@@ -254,7 +254,8 @@ void vTaskButton(void *pvParameters)
 								0)						//second
 			);
 
-			Interface.database.setDayOfWeek(rtc.now().dayOfTheWeek());
+			vTaskDelay(pdMS_TO_TICKS(50));
+			Interface.database.setDayOfWeek(calenderDate[1]);
 
 			if (Interface.schedule.isEnable())
 			{
@@ -305,14 +306,14 @@ void vTaskSoilSensor(void *pvParameters)
 	(void)pvParameters;
 
 	// Initalize sensors' power pin
-	//pinMode(SOIL_SENSOR1_POWER_PIN, OUTPUT);
-	// pinMode(SOIL_SENSOR2_POWER_PIN, OUTPUT);
-	// pinMode(SOIL_SENSOR3_POWER_PIN, OUTPUT);
+	pinMode(SOIL_SENSOR1_POWER_PIN, OUTPUT);
+	pinMode(SOIL_SENSOR2_POWER_PIN, OUTPUT);
+	pinMode(SOIL_SENSOR3_POWER_PIN, OUTPUT);
 
 	//Initially keep the sensors OFF
-	//digitalWrite(SOIL_SENSOR1_POWER_PIN, LOW);
-	// digitalWrite(SOIL_SENSOR2_POWER_PIN, LOW);
-	// digitalWrite(SOIL_SENSOR3_POWER_PIN, LOW);
+	digitalWrite(SOIL_SENSOR1_POWER_PIN, LOW);
+	digitalWrite(SOIL_SENSOR2_POWER_PIN, LOW);
+	digitalWrite(SOIL_SENSOR3_POWER_PIN, LOW);
 
 	uint8_t s_pin[NUM_SOIL_SENSOR] = {SOIL_SENSOR1_PIN, SOIL_SENSOR2_PIN, SOIL_SENSOR3_PIN};
 
@@ -339,21 +340,20 @@ void vTaskSoilSensor(void *pvParameters)
 		// 	vTaskSuspend(xSoilTaskHandle);
 		// }
 
-		//digitalWrite(SOIL_SENSOR1_POWER_PIN, HIGH);
-		//digitalWrite(SOIL_SENSOR2_POWER_PIN, HIGH);
-		//digitalWrite(SOIL_SENSOR3_POWER_PIN, HIGH);
+		digitalWrite(SOIL_SENSOR1_POWER_PIN, HIGH);
+		digitalWrite(SOIL_SENSOR2_POWER_PIN, HIGH);
+		digitalWrite(SOIL_SENSOR3_POWER_PIN, HIGH);
 		//Wait until power is stable
 		vTaskDelay(pdMS_TO_TICKS(150));
-		//for (int i = 0; i < NUM_SOIL_SENSOR; i++)
-		for (int i = 0; i < 3; i++)
+		for (int i = 0; i < NUM_SOIL_SENSOR; i++)
 		{
 			if (!Interface.database.isValveAvailable(i))
 				continue;
 			
 
 			//Read Soil Sensors
-			//uint16_t moisture_value = analogRead(s_pin[i]);
-			moisture_value = 500;
+			moisture_value = analogRead(s_pin[i]);
+			//moisture_value = 500;
 			toUpdate = false;
 
 			if (moisture_value < sensor_lowerBound[i])
@@ -380,11 +380,10 @@ void vTaskSoilSensor(void *pvParameters)
 				}
 			}
 
-			// moisture_value = max(moisture_value, sensor_lowerBound[i]);
-			// moisture_value = min(moisture_value, sensor_upperBound[i]);
+			moisture_value = max(moisture_value, sensor_lowerBound[i]);
+			moisture_value = min(moisture_value, sensor_upperBound[i]);
 			moisture_value = map(moisture_value, sensor_upperBound[i], sensor_lowerBound[i], 0, 100);
 
-			//Serial.println(moisture_value);
 			Interface.database.setSoilSensor(i, moisture_value);
 
 			if (Interface.database.soilSensor(i) < Interface.database.cropThreshold(Interface.database.crop(i)) &&
@@ -406,9 +405,9 @@ void vTaskSoilSensor(void *pvParameters)
 			}
 		}
 		//Turn off sensors
-		// digitalWrite(SOIL_SENSOR1_POWER_PIN, LOW);
-		// digitalWrite(SOIL_SENSOR2_POWER_PIN, LOW);
-		// digitalWrite(SOIL_SENSOR3_POWER_PIN, LOW);
+		digitalWrite(SOIL_SENSOR1_POWER_PIN, LOW);
+		digitalWrite(SOIL_SENSOR2_POWER_PIN, LOW);
+		digitalWrite(SOIL_SENSOR3_POWER_PIN, LOW);
 
 		Interface.updateLCD(SOIL);
 		xTaskDelayUntil(&xLastWakeTime, xSoilSensorFreq);
@@ -442,8 +441,7 @@ void vTaskValve(void *pvParameters)
 	{
 		if (xSemaphoreTake(xValveSemaphore, portMAX_DELAY))
 		{
-			//for (int i = 0; i < NUM_VALVE; i++)
-			for (int i = 0; i < 3; i++)
+			for (int i = 0; i < NUM_VALVE; i++)
 			{
 				if (needWater[i] && Interface.database.isValveAvailable(i))
 				{
@@ -575,7 +573,6 @@ void vTaskAlarm(void *pvParameters)
 		}
 
 		rtc.clearAlarm(1);
-		//3:03pm BUG
 		if (rtc.setAlarm1(DateTime(rtc.now().year(), rtc.now().month(), rtc.now().day(), time[0], time[1], 0),DS3231_A1_Hour))
 		{
 			Interface.schedule.setDeadline(time);

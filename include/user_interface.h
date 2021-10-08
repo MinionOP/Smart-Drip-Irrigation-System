@@ -49,24 +49,85 @@ const uint16_t BLINK_INTERVAL = 1500;
 class UserInterface
 {
 public:
+
+    
     Database database;
     Schedule schedule;
 
+    /**
+     * @brief Construct a new User Interface object
+     * 
+     * @param lcd_addr - i2c address, dependent on manufacturer
+     * @param lcd_cols - number of columns
+     * @param lcd_rows - number of rows
+     */
     UserInterface(uint8_t lcd_addr, uint8_t lcd_cols, uint8_t lcd_rows);
+
+    /**
+     * @brief Prompt the LCD to turn on. Ready to operate.
+     * 
+     */
     void begin(void);
+
+    /**
+     * @brief Print the updated value to LCD
+     * 
+     * @param type - from enum "Type"
+     * @param num  - the updated value
+     */
     void updateLCD(uint8_t type, uint8_t num = 10);
+
+    /**
+     * @brief Clear LCD and print a new display
+     * 
+     * @param display - from enum "Display"
+     */
     void printDisplay(uint8_t display);
+
+    /**
+     * @brief Prints an array of integers to LCD
+     * 
+     * @param col - column initial position
+     * @param row  - row initial position
+     * @param buffer - array of intergers
+     * @param len - length of array input
+     */
     void printToLCD(uint8_t col, uint8_t row, uint8_t buffer[20], uint8_t len);
 
-
+    /**
+     * @brief Return LCD's idle status
+     * 
+     * @return true if 'idle'
+     * @return false if 'not idle'
+     */
     bool isIdle(void);
+
+    /**
+     * @brief Return LCD's backlight status
+     * 
+     * @return true if backlight is on
+     * @return false if backlight is off
+     */
     bool isLCDOn(void);
 
-
+    /**
+     * @brief Check if backlight is disbaled. If true then it will 
+     *         turn on LCD's backlight and set idle status to false
+     * 
+     */
     void wakeup(void);
+
+    /**
+     * @brief Turn off LCD's backlight and set idle to true
+     * 
+     */
     void idle(void);
 
-    uint8_t getCursorPosition(uint8_t type);
+    /**
+     * @brief Get the current display on the LCD
+     * 
+     * @return uint8_t type value that is mapped to enum "Display"
+     */
     uint8_t getCurrentDisplay(void);
 
 private:
@@ -111,9 +172,7 @@ private:
     void printScheduleLCD4(void);
     void resetLCDValue(void);
 
-    //Status = 0 if close
     void printValveStatus(uint8_t status, bool printType, uint8_t col, uint8_t row);
-    //Print current date/time onto LCD
     void printTime(uint8_t hour, uint8_t minute, bool isPM, uint8_t col, uint8_t row);
     void printCrop(uint8_t num, uint8_t col, uint8_t row);
     void printDay(uint8_t num, uint8_t col, uint8_t row);
@@ -177,55 +236,55 @@ private:
 //-------------------------For Reference---------------------------
 /*
 //----------MainLCD-------------
-//Time: 5:20pm
-//Unit Temp: 85F
-//S1:52% S2:80% S3:90%
-//V1:O   V2:C   V3:C
+    Time: 5:20pm
+    Battery:       85F|SR
+    S1:52% S2:80% S3:90%
+    V1:O   V2:C   V3:C
 //------------------------------
 
 //----------MenuLCD-------------
-// Valve Setting
-// Sensor Setting
-// Set Time/Schedule
-// Go to Main Display
+    Valve Setting
+    Sensor Setting
+    Set Time/Schedule
+    Go to Main Display
 //------------------------------
 
 //--------ValveSensorLCD--------
-// Go back      Sensor
-// Valve1:Corn    85%
-// Valve2:Bean    78% 
-// Valve3:Corn    84%
+    Go back      Sensor
+    V2|X| Corn    85%
+    V1| |Bean    78% 
+    ------Disabled-------
 //------------------------------
 
 //Page 0
 //----------CropLCD-------------
-// Current Crop:Corn
-// Select:
-// Corn 
-// Bean
+    Current Crop:Corn
+    Select:
+    Corn 
+    Bean
 //------------------------------
 
 //Page 1
 //----------CropLCD-------------
-// Cotton
-// Tomato
-// Potato
-// Tobacco
+    Cotton
+    Tomato
+    Potato
+    Tobacco
 //------------------------------
 
 //Page 2
 //----------CropLCD-------------
-// Papaya
-// Go back
-// 
-// 
+    Papaya
+    Go back
+ 
+
 //------------------------------
 
 //----------Schedule-------------
-//>M  Monday:
-// T  5:45pm - 5:00am
-// W  6:00am - 7:00pm
-// Th
+>Enable/Disable Schedule
+ M  Monday:
+ T  5:45pm - 5:00am
+ W  6:00am - 7:00pm
 //------------------------------
 */
 //--------------------------------------------------------------

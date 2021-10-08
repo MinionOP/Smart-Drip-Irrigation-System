@@ -10,68 +10,6 @@ Schedule::Schedule()
         }
     }
 
-    // update(0, 0, 10, 5, 1, 10, 10, 1);
-    // update(0, 1, 10, 15, 1, 10, 20, 1);
-    //update(0, 2, 10, 25, 1, 10, 30, 1);
-
-    // update(0, 0, 1, 30, 1, 2, 30, 1);
-    // update(0, 1, 2, 25, 1, 3, 35, 1);
-    // update(0, 2, 3, 40, 1, 3, 45, 1);
-
-    // enableDay(MONDAY,0);
-    // enableDay(MONDAY,1);
-    // enableDay(MONDAY,2);
-
-//Bug found: FIXED---------------------
-    // update(1, 0, 11, 35, 1, 11, 40, 1);
-    // update(1, 1, 3, 40, 1, 3, 45, 1);
-    // update(1, 0, 12, 55, 1, 1, 0, 1);
-    // update(1, 1, 1, 5, 1, 1, 10, 1);
-    //update(1, 2, 10, 25, 1, 10, 30, 1);
-
-    enableDay(TUESDAY,0);
-    enableDay(TUESDAY,1);
-//-----------------------------------
-
-//NEW BUG-------------------------
-    // update(1, 0, 10, 45, 1, 10, 50, 1);
-    // update(1, 1, 10, 50, 1, 10, 55, 1);
-    // update(1, 2, 11, 00, 1, 11, 10, 1);
-
-    //enableDay(TUESDAY,0)
-    //enableDay(TUESDAY,1)
-    //enableDay(TUESDAY,2)
-
-//-------------------
-    // enableDay(TUESDAY,2);
-
-    // update(1, 0, 1, 30, 1, 6, 30, 1);
-    // update(1, 1, 2, 30, 1, 7, 15, 1);
-
-    update(2, 0, 2, 30, 1, 6, 30, 1);
-    update(2, 1, 5, 30, 0, 11, 15, 0);
-
-    update(3, 0, 11, 45, 0, 11, 50, 0);
-    update(3, 1, 11, 55, 0, 12, 5, 1);
-    //update(3,2,4,30,0,5,30,0);
-
-    //Friday
-    update(4, 0, 9, 0, 1, 9, 5, 1);
-    update(4, 0, 9, 10, 1, 9, 15, 1);
-    update(4, 0, 9, 20, 1, 9, 25, 1);
-
-    //update(4, 1, 7, 30, 1, 12, 30, 1);
-
-    // update(5, 0, 5, 30, 1, 8, 45, 1);
-    // update(5, 1, 3, 30, 1, 8, 45, 1);
-
-    update(5, 0, 11, 35, 1, 11, 40, 1);
-    enableDay(SATURDAY,0);
-
-    update(6, 0, 6, 30, 1, 7, 30, 1);
-    update(6, 1, 5, 30, 0, 7, 15, 0);
-
-    
 }
 
 bool Schedule::update(uint8_t day, uint8_t num, uint8_t _startHr, uint8_t _startMin, bool _startPM, uint8_t _endHr, uint8_t _endMin, bool _endPM)
