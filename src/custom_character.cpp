@@ -15,11 +15,7 @@ uint8_t CustomCharacters::getCharacterSet(void){
 }
 
 uint8_t* CustomCharacters::getCharacter(uint8_t i){
-    switch(currentSet){
-    case 0: return customSymbolTable[i];
-    case 1: return customNumTable[i];
-    }
-    return customSymbolTable[0];
+    return customNumTable[i];
 }
 
 uint8_t CustomCharacters::getSize(void){

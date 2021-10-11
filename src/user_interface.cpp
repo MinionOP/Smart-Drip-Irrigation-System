@@ -76,15 +76,23 @@ void UserInterface::updateLCD(uint8_t type, uint8_t num)
         }
         else if (currentDisplay == MAIN_LCD)
         {
-            for (int i = 0, col_temp = 3; i < 3; i++)
+           for (int i = 0, col_temp = 3; i < 3; i++)
             {
                 uint8_t soilTemp = database.soilSensor(i);
-                lcdSP(col_temp, 2, soilTemp);
-                lcd.print('%');
+                if(i < 2){
+                    lcdSP(col_temp, 2, "    ");
+                    lcdSP(col_temp, 2, soilTemp);
+                    lcd.print('%');
+                }
+                else{
+                    lcdSP(col_temp, 2, "   ");
+                    lcdSP(col_temp, 2, soilTemp);
+                    if(soilTemp<100)
+                        lcd.print('%');
+                }
                 col_temp += 7;
             }
         }
-        //lcdSP(0,0,"SOIL");
 
         return;
     }
@@ -106,24 +114,21 @@ void UserInterface::updateLCD(uint8_t type, uint8_t num)
                 col_temp = col_temp + 7;
             }
         }
-        //lcdSP(0,1,"VALE");
 
         return;
     }
-    case TIME:
+    case RTC:
     {
 
         if (currentDisplay == MAIN_LCD)
         {
-            uint8_t dayTemp = database.getDayOfWeek();
-            printDay(dayTemp, 0, 0);
-            uint8_t col_temp = (dayTemp == 0 || dayTemp == 4 || dayTemp == 6) ? 7 : (dayTemp == 3 || dayTemp == 5) ? 9
-                                                                                : (dayTemp == 1)                   ? 8
-                                                                                                                   : 10;
+            uint8_t d = database.getDayOfWeek();
+            printDay(d, 0, 0);
+            uint8_t a[7] = {7, 8, 10, 9, 7, 9, 7};
+            uint8_t col_temp = a[d];
 
             printTime(database.getHour(), database.getMinute(), database.getPM(), col_temp, 0);
         }
-        //lcdSP(0,2,"TIME");
 
         return;
     }
@@ -138,7 +143,6 @@ void UserInterface::updateLCD(uint8_t type, uint8_t num)
             lcd.print("F|");
         }
 
-        //lcdSP(0,3,"TEMP");
 
         return;
     }
@@ -165,10 +169,21 @@ void UserInterface::updateLCD(uint8_t type, uint8_t num)
     }
     case DEADLINE:
     {
-        if(currentDisplay == SCHEDULE_LCD && cursor[ROW] == 0 && schedule.isDeadline()){
-            uint8_t buffer[2];
-            schedule.getDeadline(buffer);
-            printTime(buffer[0], buffer[1], buffer[2], 11, 3);
+        if (currentDisplay == SCHEDULE_LCD && cursor[ROW] == 0)
+        {
+            if (schedule.isDeadline())
+            {
+                uint8_t buffer[2];
+                schedule.getDeadline(buffer);
+                printTime(buffer[0], buffer[1], buffer[2], 11, 3);
+            }
+            else
+            {
+                lcdSP(0, 1, " M | Scheduling");
+                lcdSP(0, 2, " T | is");
+                lcdSP(0, 3, " W |");
+                (schedule.isEnable()) ? lcdSP(8, 2, "ENABLED ") : lcdSP(8, 2, "DISABLED");
+            }
         }
     }
     }
@@ -200,10 +215,9 @@ void UserInterface::AddMenuInfo(uint8_t display, uint8_t _initialPos, uint8_t _t
 }
 void UserInterface::printMainLCD(void)
 {
-    currentDisplay = MAIN_LCD;
     lcd.clear();
-
-    lcd.setCursor(19, 0);
+    currentDisplay = MAIN_LCD;
+    
     lcdSP(0, 1, "Battery:");
     lcdSP(0, 2, "S1:");
     lcdSP(7, 2, "S2:");
@@ -255,11 +269,9 @@ void UserInterface::printMainLCD(void)
     uint8_t dayTemp = database.getDayOfWeek();
     if (dayTemp != 9)
     {
+        uint8_t a[7] = {7, 8, 10, 9, 7, 9, 7};
+        uint8_t col_temp = a[dayTemp];
         printDay(dayTemp, 0, 0);
-        uint8_t col_temp = (dayTemp == 0 || dayTemp == 4 || dayTemp == 6) ? 7 : (dayTemp == 3 || dayTemp == 5) ? 9
-                                                                            : (dayTemp == 1)                   ? 8
-                                                                                                               : 10;
-
         printTime(database.getHour(), database.getMinute(), database.getPM(), col_temp, 0);
     }
 
@@ -284,25 +296,10 @@ void UserInterface::printMenuLCD(void)
         lcdSP(0, 0, ">Valve Setting");
     }
 
-    //lcdSP(0, 1, " Sensor Setting");
     lcdSP(0, 1, " Edit Crop Values");
     lcdSP(0, 2, " Set Time/Schedule");
     lcdSP(0, 3, " Go to Main Display");
 
-    //debugging-----------------------------------------
-    // uint8_t buffer[8] = {0};
-
-    // schedule.getInfo(schedule.getActiveDay(), schedule.getActiveNum(), buffer);
-
-    // lcd.setCursor(0,0);
-    // for(int i=0;i<8;i++){
-    //     lcd.print(buffer[i]);
-    //     lcd.print(' ');
-    // }
-    // lcdSP(0,1,schedule.getActiveDay());
-    // lcdSP(0,2,schedule.getActiveNum());
-
-    //debugging-----------------------------------------
 
     page = 0;
     cursor[ROW] = 0;
@@ -347,18 +344,6 @@ void UserInterface::printCropLCD(void)
     {
     case 0:
     {
-        // lcdSP(0, 0, "Curr Crop:");
-        // printCrop(database.crop(database.getSelectedCropNum()));
-        // lcdSP(0, 1, "Select:");
-        // (!skipMarker) ? lcdSP(0, 2, ">") : lcdSP(0, 2, " ");
-        // printCrop(0);
-        // lcd.setCursor(1, 3);
-        // printCrop(1);
-        // lcd.setCursor(11, 3);
-        // lcd.print("v");
-        // //lcd.write(0);
-        // cursor[ROW] = 2;
-        // break;
         database.isValveAvailable(database.getSelectedValveNum()) ? lcdSP(0, 0, " Disable Valve") : lcdSP(0, 0, " Enable Valve");
         (!skipMarker) ? lcdSP(0, 0, ">") : lcdSP(0, 0, " ");
         lcdSP(0, 1, " Select: |Current");
@@ -368,7 +353,6 @@ void UserInterface::printCropLCD(void)
         printCrop(0, 1, 2);
         printCrop(1, 1, 3);
 
-        //lcd.write(0);
         cursor[ROW] = 0;
         break;
     }
@@ -382,7 +366,6 @@ void UserInterface::printCropLCD(void)
         lcd.setCursor(18, 3);
         lcd.print("v");
 
-        //lcd.write(0);
         cursor[ROW] = 0;
         break;
     }
@@ -391,7 +374,6 @@ void UserInterface::printCropLCD(void)
         printCrop(6, 1, 0);
         lcdSP(1, 1, "Go back");
         lcd.setCursor(18, 0);
-        //lcd.write(1);
         lcd.print("^");
 
         cursor[ROW] = 0;
@@ -417,7 +399,6 @@ void UserInterface::printCropThresholdLCD(void)
         lcd.setCursor(18, 3);
         lcd.print("v");
 
-        //lcd.write(0);
         break;
     }
     case 1:
@@ -435,7 +416,6 @@ void UserInterface::printCropThresholdLCD(void)
         lcdSP(12, 3, database.cropThreshold(4));
         lcd.print('%');
         lcd.setCursor(18, 3);
-        //lcd.write(0);
         lcd.print("v");
 
         break;
@@ -450,7 +430,6 @@ void UserInterface::printCropThresholdLCD(void)
         lcd.print('%');
         lcdSP(1, 2, "Go back");
         lcd.setCursor(18, 0);
-        //lcd.write(1);
         lcd.print("^");
 
         break;
@@ -506,16 +485,13 @@ void UserInterface::printTimeLCD(void)
 void UserInterface::printScheduleLCD(void)
 {
 
-    if (currentDisplay == SCHEDULE_LCD && cursor[ROW] == 0 && page == 0 && pressed == 1 && !schedule.isDeadline())
+    if (currentDisplay == SCHEDULE_LCD && cursor[ROW] == 0 && page == 0 && pressed == 1)
     {
-        if(schedule.isDeadline() && !schedule.isEnable()){
-            lcdSP(0, 1, " M | Scheduling");
-            lcdSP(0, 2, " T | is DISABLED ");
-            lcdSP(0, 3, " W |            ");
-        }
-        else{
-            (schedule.isEnable()) ? lcdSP(8, 2, "ENABLED ") : lcdSP(8, 2, "DISABLED ");
-        }
+        lcdSP(0, 1, " M | Scheduling");
+        lcdSP(0, 2, " T | is            ");
+        lcdSP(0, 3, " W |               ");
+        (schedule.isEnable()) ? lcdSP(8, 2, "ENABLED ") : lcdSP(8, 2, "DISABLED ");
+
         return;
     }
 
@@ -573,18 +549,13 @@ void UserInterface::printScheduleLCD2(void)
 {
     lcd.clear();
     uint8_t date = database.getSelectedDate(0);
+    char a[7][3] = {"M","T","W","Th","F","Sa","Su"};
     currentDisplay = SCHEDULE_LCD2;
     (pressed) ? lcdSP(0, 0, ">  Go back") : lcdSP(2, 0, " Go back");
     printSchedule(date, 0, 3, 3, 1);
 
-    lcdSP((date == 3 || date == 5 || date == 6) ? (18) : 19, 0,
-                   (date == 0) ? "M" : (date == 1) ? "T"
-                                   : (date == 2)   ? "W"
-                                   : (date == 3)   ? "Th"
-                                   : (date == 4)   ? "F"
-                                   : (date == 5)   ? "Sa"
-                                   : (date == 6)   ? "Su"
-                                                   : "X");
+    lcdSP((date == 3 || date == 5 || date == 6) ? (18) : 19, 0, a[date]);
+
 
     cursor[ROW] = 0;
 }
@@ -707,19 +678,11 @@ void UserInterface::printSchedule(uint8_t day, uint8_t startNum, uint8_t endNum,
     {
         if (currentDisplay != SCHEDULE_LCD4 && currentDisplay != SCHEDULE_LCD3)
         {
-            // Serial.print("1 ");
             schedule.getInfo(day, i, buffer);
-            // for(int i=0;i<8;i++){
-            //     Serial.print((String)buffer[i] + " ");
-            // }
-            // Serial.println();
+
         }
         else
         {
-            // for(int i=0;i<8;i++){
-            //     Serial.print((String)globalBuffer[i] + " ");
-            // }
-            // Serial.println();
 
             buffer[0] = globalBuffer[0] * 10 + globalBuffer[1];
             buffer[1] = globalBuffer[2] * 10 + globalBuffer[3];
@@ -729,7 +692,6 @@ void UserInterface::printSchedule(uint8_t day, uint8_t startNum, uint8_t endNum,
             buffer[5] = globalBuffer[9];
             buffer[6] = schedule.isDayActive(database.getSelectedDate(0), database.getSelectedDate(1));
             buffer[7] = false;
-            //Serial.print("2 ");
         }
 
         if (buffer[7] == false)
@@ -1375,12 +1337,8 @@ void UserInterface::selectButton(void)
     {
         if (cursor[COLUMN] == 15)
         {
-            //Recreate symbols
-            //createCustomSymbols(0);
-            //Save new threshold value into crop array
+
             database.setCropThreshold(database.getSelectedCropNum(), tempArray[0] * 10 + tempArray[1]);
-            //Fixing cursor when lcd is switch to back to threshold menu
-            //-----------------------------------
             uint8_t temp = cursor[ROW];
             printCropThresholdLCD();
             if (page == 0)
@@ -1452,18 +1410,7 @@ void UserInterface::selectButton(void)
             bool toUpdate = false;
             for (int i = 0; i < 16; i++)
             {
-                // if (i < 5)
-                // {
-                //     lcdSP(i, 0, globalBuffer[i]);
-                //     lcdSP(i, 1, globalBuffer[i+5]);
 
-                // }
-                // else if (i >= 10)
-                // {
-                //     lcdSP(i, 2, globalBuffer[i]);
-                //     lcdSP(i, 3, globalBuffer[i+6]);
-
-                // }
                 if ((i < 5) && (globalBuffer[i] != globalBuffer[i + 5]))
                 {
                     toUpdate = true;
@@ -1484,9 +1431,6 @@ void UserInterface::selectButton(void)
                                          globalBuffer[12] * 10 + globalBuffer[13],
                                          globalBuffer[14] * 10 + globalBuffer[15]);
 
-                // uint8_t s[3] = {0};
-                // database.getCalenderDate(s);
-                // printToLCD(0,2,s,3);
                 database.enableRTCFlag();
             }
             page = 0;
@@ -1513,7 +1457,6 @@ void UserInterface::selectButton(void)
             lcdSP(11, 1, "  ");
             lcdSP(11, 2, "  ");
             lcdSP(0, 1, '>');
-            //lcdSP(11, 3, "       ");
             menu[currentDisplay].cursorType = 0;
             cursor[COLUMN] = 0;
         }
@@ -1539,15 +1482,7 @@ void UserInterface::selectButton(void)
         {
             page = 0;
             printScheduleLCD();
-            // uint8_t time[8] = {0};
-            // for(int i=0;i<3;i++){
-            //     schedule.getInfo(THURSDAY,i,time);
-            //     lcd.setCursor(0,i);
-            //     for(int j=0;j<8;j++){
-            //         lcd.print(time[j]);
-            //         lcd.print(' ');
-            //     }
-            // }
+
         }
         else
         {
@@ -1592,14 +1527,7 @@ void UserInterface::selectButton(void)
                 }
             }
 
-            // if (toUpdateSchedule == true)
-            // {
-            //     lcdSP(9, 2, "true");
-            // }
-            // else
-            // {
-            //     lcdSP(9, 2, "false");
-            // }
+    
 
             if (toUpdateSchedule == true)
             {
@@ -1685,7 +1613,8 @@ void UserInterface::selectButton(void)
                 (pm1 == 1 && pm2 == 0 && (hour2 != 12 || min2 != 0)) ||
                 (hour1 == hour2 && min1 == min2 && pm1 == pm2) ||
                 (hour1 > hour2 && pm1 == 1 && pm2 == 0 && (hour2 != 12 || min2 != 0)) ||
-                (hour1 >= hour2 && min1 >= min2 && pm1 == pm2)
+                (hour1 >= hour2 && min1 >= min2 && pm1 == pm2 && pm1 == 1) || 
+                (hour1 >= hour2 && min1 >= min2 && pm1 == pm2 && pm1 == 0 && hour1 != 12)
                 )
             {
                 lcdSP(11, 3, "Invalid");
@@ -1703,6 +1632,13 @@ void UserInterface::selectButton(void)
         }
         else
         {
+            if(cursor[MODE]){
+                lcdSP(9,3, " ");
+            }
+            else{
+                lcdSP(9,3, "S");
+            }
+
             cursor[MODE] = !cursor[MODE];
         }
         break;
@@ -1756,45 +1692,18 @@ void UserInterface::lcdSP(uint8_t col, uint8_t row, char msg)
 
 void UserInterface::printDay(uint8_t num, uint8_t col, uint8_t row)
 {
+    char d[7][10] = {
+        {"Monday"},
+        {"Tuesday"},
+        {"Wednesday"},
+        {"Thursday"},
+        {"Friday"},
+        {"Saturday"},
+        {"Sunday"}
+    };
+
     lcd.setCursor(col, row);
-    switch (num)
-    {
-    case 0:
-    {
-        lcd.print("Monday");
-        break;
-    }
-    case 1:
-    {
-        lcd.print("Tuesday");
-        break;
-    }
-    case 2:
-    {
-        lcd.print("Wednesday");
-        break;
-    }
-    case 3:
-    {
-        lcd.print("Thursday");
-        break;
-    }
-    case 4:
-    {
-        lcd.print("Friday");
-        break;
-    }
-    case 5:
-    {
-        lcd.print("Saturday");
-        break;
-    }
-    case 6:
-    {
-        lcd.print("Sunday");
-        break;
-    }
-    }
+    lcd.print(d[num]);
 }
 void UserInterface::printCrop(uint8_t num, uint8_t col, uint8_t row)
 {

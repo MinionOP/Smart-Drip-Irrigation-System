@@ -30,7 +30,7 @@ public:
     Schedule();
     
     /**
-     * @brief Add a new schedule to planner
+     * @brief Add a new schedule to scheduler
      * 
      * @return true if success
      * @return false if failed
@@ -49,12 +49,12 @@ public:
     void enableDay(uint8_t day, uint8_t num);
 
     /**
-     * @brief Permanently delete selected schedule from planner
+     * @brief Permanently delete selected schedule from scheduler
      */
     bool clear(uint8_t day, uint8_t num);
 
     /**
-     * @brief Get schedule from planner
+     * @brief Get schedule from scheduler
      * 
      * @param day - value from enum 'Day'
      * @param num - value between 0-2
@@ -67,12 +67,12 @@ public:
     bool isDayActive(uint8_t day, uint8_t num);
 
     /**
-     * @param data - Copy entire planner into array.  
+     * @param data - Copy entire scheduler into array.  
      */
     void save(uint8_t data[S_SAVE_SIZE]); 
 
     /**
-     * @param data - Overwrite current planner with data array
+     * @param data - Overwrite current scheduler with data array
      */
     void load(uint8_t data[S_SAVE_SIZE]);
 
@@ -97,25 +97,62 @@ public:
     uint8_t* next(uint8_t day, uint8_t buffer[2]);
 
     
-
-    void toggleSchedule(void);
-    void disable(void);
+    /**
+     * @brief Enable scheduler
+     */
     void enable(void);
 
+    /**
+     * @brief Disable scheduler and clear all flags
+     * 
+     */
+    void disable(void);
+    void toggleSchedule(void);
     bool isEnable(void);
+
+    /**
+     * @brief Device is currently "running". It is in the timeframe set by user.
+     * Example: Device is schedule to time on from Monday 10:30am - 11:30am
+     * 
+     * @return true - it in the time slot, and scheduler is enabled
+     * @return false - not in the time slot
+     */
     bool isRunning(void);
-    void enableRunningFlag(void);
-    void clearRunningFlag(void);
+
+    /**
+     * @brief A flag that is set if a schedule (struct DaySchedule) was added/remove or time/date was changed 
+     *        while scheduler is enabled or running
+     * 
+     * @return true - scheduler was recently changed
+     * @return false - no change have been made to scheduler
+     */
     bool isReschedule(void);
     void clearRescheduleFlag(void);
+
 
     void setDeadline(uint8_t buffer[2]);
     uint8_t *getDeadline(uint8_t buffer[2], bool hour24 = false);
     bool isDeadline(void);
-    void enableDeadlineFlag(void);
     void clearDeadlineFlag(void);
 
+    /**
+     * @brief Get the day that is currently being edited by user
+     *    (day)     Friday:
+     *    (number 1)   10:30am - 11:30am
+     *    (number 2)    2:00pm - 2:45pm
+     *    (number 3)    3:00pm - 9:15pm
+     * @return uint8_t value from enum "Day"
+     */
     uint8_t getActiveDay(void);
+
+    /**
+     * @brief Get the number being edited by user
+     *    (day)    Friday:
+     *    (number 1)   10:30am - 11:30am
+     *    (number 2)    2:00pm - 2:45pm
+     *    (number 3)    3:00pm - 9:15pm
+     * @return uint8_t 
+     */
     uint8_t getActiveNum(void);
 
 

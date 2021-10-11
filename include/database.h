@@ -33,21 +33,93 @@ public:
     uint8_t get24Hour(void);
     uint8_t getMinute(void);
     bool getPM(void);
-    bool isValveAvailable(uint8_t _valveNum);
-    bool getValveFlag(uint8_t _valveNum);
-    bool isRTCFlagEnable(void);
 
+
+    /**
+     * @brief Set valve status. Enabled or disabled
+     * 
+     * @param _valveNum - valve number (0-2) 
+     * @param status - true(enable), false(disable)
+     */
+    void setValveAvailability(uint8_t _valveNum, bool status);
+
+    /**
+     * @brief Check is valve is avilable(enabled)
+     * 
+     * @param _valveNum 
+     * @return true - enabled
+     * @return false - disabled
+     */
+    bool isValveAvailable(uint8_t _valveNum);
+
+    /**
+     * @brief Check if valve's status was recently change
+     * 
+     * @param _valveNum - the valve number (0-2) 
+     * @return true - valve was changed
+     * @return false  - no change
+     */
+    bool getValveFlag(uint8_t _valveNum);
+    void clearValveFlag(uint8_t _valveNum);
+
+    bool isRTCFlagEnable(void);
     void clearRTCFlag(void);
     void enableRTCFlag(void);
 
-    void clearValveFlag(uint8_t _valveNum);
+    /**
+     * @brief Change valve position (open/close)
+     * 
+     * @param _num - valve number
+     * @param _status - true (open), false (close)
+     */
     void setValveStatus(uint8_t _num, bool _status);
+
+    /**
+     * @brief Record measured reading from moisture sensor
+     * 
+     * @param _num - soil sensor number (0-2)
+     * @param _soil - measurement
+     */
     void setSoilSensor(uint8_t _num, uint8_t _soil);
+
+    /**
+     * @brief Designate crop to a valve
+     * 
+     * @param valveNum - valve number
+     * @param crop - a crop from enum "ListOfCrop"
+     */
     void setCrop(uint8_t valveNum, uint8_t crop);
-    void setTemperature(uint8_t _temp);
+    
+    /**
+     * @brief Set crop's threshold. Valve will be closed if soil measurement 
+     *        are higher than the set threshold
+     * 
+     * @param _crop - crop from enum "ListOfCrop"
+     * @param _threshold - desired moisture  reading
+     */
     void setCropThreshold(uint8_t _crop, uint8_t _threshold);
+
+    /**
+     * @brief Set current crop being edited by the user. This function 
+     *        is only called from UserInterface class
+     */
     void setSelectedCropNum(uint8_t _currentCrop);
+
+    /**
+     * @brief Set current valve being edited by the user. This function 
+     *        is only called from UserInterface class     * 
+     */
     void setSelectedValveNum(uint8_t _currentValve);
+
+
+    void setTemperature(uint8_t _temp);
+
+    /**
+     * @brief Set the Selected Date 
+     * 
+     * @param value 
+     * @param index 
+     */
     void setSelectedDate(uint8_t value, bool index);//Index = 0 if value is date, index = 1 if value is num of date
     bool setDayOfWeek(uint8_t _dayOfWeek, bool reformat = true); //False if same day
     void setCalenderDate(uint8_t _month, uint8_t _day, uint16_t year);
@@ -55,7 +127,6 @@ public:
     void setHour(uint8_t _hour);
     void setMinute(uint8_t _minute);
     void setPM(bool _isPM);
-    void setValveAvailability(uint8_t _valveNum, bool status);
 
     void save(uint8_t data[C_SAVE_SIZE]);
     void load(uint8_t data[C_SAVE_SIZE]);
@@ -72,7 +143,7 @@ private:
     uint8_t selectedValveNum = 0;
     uint8_t selectedCropNum = 0;
     uint8_t selectedDate[2] = {0};
-    uint8_t dayOfWeek = 9;
+    uint8_t dayOfWeek = 3;
     uint8_t calenderDate[3] = {1,26,21};
     uint8_t temp = 0;
     uint8_t hour = 0;

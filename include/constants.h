@@ -8,12 +8,10 @@ namespace constants
     constexpr uint8_t NUM_SOIL_SENSOR   = 3;
     constexpr uint8_t NUM_VALVE         = 3;
 
-    
     constexpr uint16_t AIR_VALUE        = 590;  //Sensor value when exposed to the air                    
     constexpr uint16_t WATER_VALUE      = 305;  //Sensor value completely submerged in water
 
-    constexpr uint32_t SOIL_SENSOR_INTERVAL  = 15000;   //15 seconds
-    constexpr uint32_t TEMPERATURE_INTERVAL  = 300000;  //5 minute
+    constexpr uint32_t SOIL_SENSOR_INTERVAL  = 10000;   //10 seconds
     constexpr uint32_t RTC_INTERVAL          = 45000;   //45 seconds
     constexpr uint32_t IDLE_INTERVAL         = RTC_INTERVAL * 2;  //45 seconds
     constexpr uint32_t BATTERY_INTERVAL      = 60000;   //1 minute

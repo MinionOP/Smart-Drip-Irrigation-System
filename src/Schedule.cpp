@@ -288,7 +288,6 @@ uint8_t *Schedule::locateClosest(uint8_t day, uint8_t hour, uint8_t min, uint8_t
              a2,
              x = 288;
     uint8_t pos = 0, counter = 0;
-            //s = 0;
 
     int b1 = 3, b2 = 3;
 
@@ -298,10 +297,6 @@ uint8_t *Schedule::locateClosest(uint8_t day, uint8_t hour, uint8_t min, uint8_t
         {
             counter++;
         }
-        // else
-        // {
-        //     s = i;
-        // }
         if (counter == 3)
         {
             buffer[0] = 25;
@@ -310,12 +305,6 @@ uint8_t *Schedule::locateClosest(uint8_t day, uint8_t hour, uint8_t min, uint8_t
         }
     }
 
-    // if (counter == 2)
-    // {
-    //     pos = s;
-    // }
-    // else
-    // {
     for (int i = 0; i < 3; i++)
     {
         if (!scheduleTable[day][i].active)
@@ -339,7 +328,6 @@ uint8_t *Schedule::locateClosest(uint8_t day, uint8_t hour, uint8_t min, uint8_t
             x = diff;
         }
     }
-    //}
     if (b1 == 3 && b2 == 3)
     {
         buffer[0] = 25;
@@ -437,7 +425,6 @@ bool Schedule::compare(uint8_t hour1, uint8_t minute1, bool pm1, uint8_t hour2, 
 
 
 
-
 void Schedule::save(uint8_t data[168])
 {
     for (int i = 0, counter = 0; i < 7; i++)
@@ -529,6 +516,7 @@ uint8_t* Schedule::to12Hour(uint8_t hour, uint8_t buffer[2]){
 void Schedule::setDeadline(uint8_t buffer[2]){
     deadline[0] = buffer[0];
     deadline[1] = buffer[1];
+    deadlineFlag = true;
 }
 
 
@@ -543,15 +531,22 @@ uint8_t Schedule::getActiveNum(void)
 
 void Schedule::disable(void)
 {
-    scheduleFlag = 0;
+    scheduleFlag = false;
+    runningFlag = false;
+    deadlineFlag = false;
 }
 void Schedule::enable(void)
 {
-    scheduleFlag = 1;
+    scheduleFlag = true;
 }
 void Schedule::toggleSchedule(void)
 {
-    scheduleFlag = !scheduleFlag;
+    if(scheduleFlag){
+        disable();
+    }
+    else{
+        enable();
+    }
 }
 bool Schedule::isEnable(void)
 {
@@ -578,15 +573,3 @@ void Schedule::clearRescheduleFlag(void){
 void Schedule::clearDeadlineFlag(void){
     deadlineFlag = false;
 }
-void Schedule::clearRunningFlag(void){
-    runningFlag = false;
-}
-
-void Schedule::enableDeadlineFlag(void){
-    deadlineFlag = true;
-}
-
-void Schedule::enableRunningFlag(void){
-    runningFlag = true;
-}
-

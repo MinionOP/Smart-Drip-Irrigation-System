@@ -28,4 +28,10 @@ SLEEP_MODE_PWR_SAVE		28.9mA
 //Ctrl+K, Ctrl+J: Unfold all
 //Alt + Mouse: Multiple line edit
 
+//List of bugs to fix
+//FIXED: Once schedule is enabled and running, CANNOT disabled, will stay on SR
+//FIXED: 3:03 at the end of schedule if 1 out of 3 was filled
+//FIXED: If schedule is SE with 1 schedule enabled, adding anohter 1 will turn on valves as if it SR
+//FIXED: Enabling then disabling schedule overflow STACK
+//FIXED: 12:55 am - 1:00am is invalid
 

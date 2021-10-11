@@ -38,7 +38,7 @@ enum Type
     UP,
     DOWN,
     SELECT,
-    TIME,
+    RTC,
     TEMPERATURE,
     SCHEDULE_STATUS,
     DEADLINE

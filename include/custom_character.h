@@ -30,7 +30,6 @@ public:
 private:
   uint8_t numberOfSymbol = 3;
   uint8_t currentSet;
-  uint8_t *customSymbolTable[3] = {DownArrow, UpArrow, TemperatureSymbol};
   uint8_t customNumTable[8][8] = {
       {31, 31, 31, 0, 0, 0, 0, 0},      // Small top line - 0
       {0, 0, 0, 0, 0, 31, 31, 31},      // Small bottom line - 1
@@ -42,33 +41,7 @@ private:
       {7, 15, 31, 31, 31, 31, 31, 31},  // Left top chamfer full -7
   };
 
-  uint8_t DownArrow[8] = {
-      B00000,
-      B00100,
-      B00100,
-      B00100,
-      B00100,
-      B10101,
-      B01110,
-      B00100};
-  uint8_t UpArrow[8] = {
-      B00100,
-      B01110,
-      B10101,
-      B00100,
-      B00100,
-      B00100,
-      B00100,
-      B00000};
-  uint8_t TemperatureSymbol[8] = {
-      B00110,
-      B01001,
-      B01001,
-      B00110,
-      B00000,
-      B00000,
-      B00000,
-      B00000};
+
 };
 
 // //----------------------------------------------------------------------------
