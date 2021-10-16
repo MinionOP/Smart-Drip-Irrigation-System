@@ -118,10 +118,10 @@ public:
      * @brief Set the Selected Date 
      * 
      * @param value 
-     * @param index 
+     * @param index = 0 if value is date, index = 1 if value is num of date
      */
-    void setSelectedDate(uint8_t value, bool index);//Index = 0 if value is date, index = 1 if value is num of date
-    bool setDayOfWeek(uint8_t _dayOfWeek, bool reformat = true); //False if same day
+    void setSelectedDate(uint8_t value, bool index);
+    bool setDayOfWeek(uint8_t _dayOfWeek, bool reformat = true);
     void setCalenderDate(uint8_t _month, uint8_t _day, uint16_t year);
     void setTime(uint8_t _hour, uint8_t _minute, bool _isPM);
     void setHour(uint8_t _hour);

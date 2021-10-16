@@ -14,8 +14,8 @@ namespace constants
     constexpr uint32_t SOIL_SENSOR_INTERVAL  = 10000;   //10 seconds
     constexpr uint32_t RTC_INTERVAL          = 45000;   //45 seconds
     constexpr uint32_t IDLE_INTERVAL         = RTC_INTERVAL * 2;  //45 seconds
-    constexpr uint32_t BATTERY_INTERVAL      = 60000;   //1 minute
-    constexpr uint32_t SAVE_INTERVAL         = 600000;   //10 minute
+    //constexpr uint32_t BATTERY_INTERVAL      = 60000;   //1 minute
+    constexpr uint32_t SAVE_INTERVAL         = 300000;   //5 minute
 
 
     //Digital pins for turning soil sensors ON/OFF
@@ -33,14 +33,13 @@ namespace constants
     constexpr uint8_t RELAY_2_PIN        = 48;
     constexpr uint8_t RELAY_3_PIN        = 49;
 
-    constexpr uint8_t DHT_PIN           = 52;
-    //constexpr uint8_t CLOCK_LED     = 4;
     constexpr uint8_t VOLTAGE_SEN_PIN   = A3;
 
     constexpr uint8_t BUTTON_UP_PIN         = 8;
     constexpr uint8_t BUTTON_DOWN_PIN       = 9;
     constexpr uint8_t BUTTON_SELECT_PIN     = 10;
     constexpr uint8_t BUTTON_DEBOUNCE       = 130;
+
     //Interrupt pins on Arduino Mega
     constexpr uint8_t BUTTON_INT_PIN        = 2;
     constexpr uint8_t BUTTON_LED_INT_PIN    = 3;

@@ -451,10 +451,10 @@ void Schedule::load(uint8_t data[168])
         for (int j = 0; j < 3; j++)
         {
             scheduleTable[i][j].startHr = data[counter];
-            scheduleTable[i][j].startMin = data[counter + 1];
+            scheduleTable[i][j].startMin = (data[counter +1]%5 == 0)?data[counter + 1]:0;
             scheduleTable[i][j].startPM = data[counter + 2];
             scheduleTable[i][j].endHr = data[counter + 3];
-            scheduleTable[i][j].endMin = data[counter + 4];
+            scheduleTable[i][j].endMin = (data[counter+4]%5 == 0)?data[counter + 4]:0;
             scheduleTable[i][j].endPM = data[counter + 5];
             scheduleTable[i][j].active = data[counter + 6];
             scheduleTable[i][j].empty = data[counter + 7];

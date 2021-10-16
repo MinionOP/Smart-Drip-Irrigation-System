@@ -10,40 +10,45 @@ Database::Database()
 
 void Database::save(uint8_t data[C_SAVE_SIZE])
 {
-    for (int i = 0; i < MAX_CROP; i++)
-    {
-        data[i] = cropThresholdArr[i];
-    }
-    for (int i = MAX_CROP, j = 0; i < MAX_CROP + 3; i++)
-    {
-        data[i] = cropArr[j];
-        j++;
-    }
-    for (int i = MAX_CROP + 3, j = 0; i < C_SAVE_SIZE; i++)
-    {
-        data[i] = valveAvailArr[j];
-        j++;
+    for(int i=0, j = 0;i<C_SAVE_SIZE;i++){
+        if(i<MAX_CROP){
+            data[i] = cropThresholdArr[i];
+        }
+        else if(i>=MAX_CROP && j< 3){
+            data[i] = cropArr[j];
+            j++; 
+        }
+        else{
+            data[i] = valveAvailArr[j-3];
+            j++;
+        }
     }
 }
 
 void Database::load(uint8_t data[C_SAVE_SIZE])
 {
-    
-    for (int i = 0; i < MAX_CROP; i++)
+    for (int i = 0, j = 0; i < C_SAVE_SIZE; i++)
     {
-        cropThresholdArr[i] = data[i];
+        if (i < MAX_CROP)
+        {
+            cropThresholdArr[i] = data[i];
+        }
+        else if (i >= MAX_CROP && j < 3)
+        {
+            if(data[i] > MAX_CROP || data[i] < 0){
+                cropArr[j] = 0;
+            }
+            else{
+                cropArr[j] = data[i];
+            }
+            j++;
+        }
+        else
+        {
+            valveAvailArr[j - 3] = data[i];
+            j++;
+        }
     }
-    for (int i = MAX_CROP, j = 0; i < MAX_CROP + 3; i++)
-    {
-        cropArr[j] = data[i];
-        j++;
-    }
-    for (int i = MAX_CROP + 3, j = 0; i < C_SAVE_SIZE; i++)
-    {
-        valveAvailArr[j] = data[i];
-        j++;
-    }
-
 }
 
 bool Database::valveStatus(uint8_t _valveNum)
