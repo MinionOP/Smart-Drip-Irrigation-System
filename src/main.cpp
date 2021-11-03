@@ -17,13 +17,13 @@
 //#define DEBUGGING
 
 //Uncomment for STACK debugging
-#define DEBUG_STACK
-#define BUTTON_STACK
-#define TEMPERATURE_STACK
-#define SOIL_STACK
-#define ALARM_STACK
-#define SAVE_STACK
-#define RTC_STACK
+// #define DEBUG_STACK
+// #define BUTTON_STACK
+// #define TEMPERATURE_STACK
+// #define SOIL_STACK
+// #define ALARM_STACK
+// #define SAVE_STACK
+// #define RTC_STACK
 
 using namespace constants;
 
@@ -124,9 +124,7 @@ void debugFun(void);
 
 
 TaskHandle_t xButtonTaskHandle = NULL,
-			 xSaveTaskHandle = NULL,
-			 xAlarmTaskHandle = NULL,
-			 xSoilTaskHandle = NULL;
+			 xAlarmTaskHandle = NULL;
 
 
 uint8_t relayArr[3] = {RELAY_1_PIN, RELAY_2_PIN, RELAY_3_PIN},
@@ -152,8 +150,10 @@ void setup()
 	ACSR |= _BV(ACD);
 
 	//Initalize real time clock
+	bool loadB = true;
 	if (!rtc.begin())
 	{
+		loadB = false;	
 	}
 
 	//Readjust time after shut down
@@ -193,11 +193,13 @@ void setup()
 			loadedDataArr[len] = {0};
 
 	//Load previously saved memory into database
-	mem.read(20, loadedDataArr, len);
-	Interface.database.load(loadedDataArr);
-	Interface.schedule.load(loadedDataArr + C_SAVE_SIZE);
+	if(loadB){
+		mem.read(20, loadedDataArr, len);
+		Interface.database.load(loadedDataArr);
+		Interface.schedule.load(loadedDataArr + C_SAVE_SIZE);
+	}
 
-
+	
 	//Initalize LCD and user interface
 	Interface.begin();
 	Interface.printDisplay(MAIN_LCD);
@@ -206,12 +208,11 @@ void setup()
 	debugFun();
 #else
 
-	xTaskCreate(vTaskRTC, "RTC", 840, NULL, 2, NULL);
-	//xTaskCreate(vTaskRTC, "RTC", 1630, NULL, 2, NULL);
-	xTaskCreate(vTaskSoilSensor, "Soil", 350, NULL, 3, &xSoilTaskHandle);
+	xTaskCreate(vTaskRTC, "RTC", 950, NULL, 2, NULL);
+	xTaskCreate(vTaskSoilSensor, "Soil", 350, NULL, 3, NULL);
 	xTaskCreate(vTaskButton, "Button", 450, NULL, 3, &xButtonTaskHandle);
 	xTaskCreate(vTaskAlarm, "Alarm", 860, NULL, 4, &xAlarmTaskHandle);
-	xTaskCreate(vTaskSave, "Save", 370, NULL, 5, &xSaveTaskHandle);
+	xTaskCreate(vTaskSave, "Save", 370, NULL, 5, NULL);
 
 	vTaskStartScheduler();
 #endif
@@ -332,7 +333,6 @@ void vTaskButton(void *pvParameters)
 		if (toUpdateValve)
 		{
 			valveFun();
-			//xSemaphoreGive(xValveSemaphore);
 		}
 
 		//Check if scheduler was recently enabled or disabled
@@ -370,6 +370,7 @@ void vTaskButton(void *pvParameters)
 			uint8_t calenderDate[3] = {0};
 
 			Interface.database.getCalenderDate(calenderDate);
+			Interface.database.setDayOfWeek(calenderDate[1]);
 
 			//Update date/time
 			rtc.adjust(DateTime(calenderDate[2] + 2000, //year
@@ -380,8 +381,7 @@ void vTaskButton(void *pvParameters)
 								0)						//second
 			);
 
-			vTaskDelay(pdMS_TO_TICKS(50));
-			Interface.database.setDayOfWeek(calenderDate[1]);
+			//vTaskDelay(pdMS_TO_TICKS(50));
 
 			if (Interface.schedule.isEnable())
 			{

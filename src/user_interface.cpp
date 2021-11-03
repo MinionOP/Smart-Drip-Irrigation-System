@@ -82,7 +82,6 @@ void UserInterface::updateLCD(uint8_t type, uint8_t num)
                 if(i < 2){
                     lcd.setCursor(col_temp,2);
                     lcd.print(F("    "));
-                    //lcdSP(col_temp, 2, "    ");
                     lcdSP(col_temp, 2, soilTemp);
                     lcd.print(F("%"));
                 }
@@ -113,7 +112,6 @@ void UserInterface::updateLCD(uint8_t type, uint8_t num)
                 {
                     lcd.setCursor(col_temp,3);
                     lcd.print(F("X"));
-                    //lcdSP(col_temp, 3, 'X');
                 }
                 col_temp = col_temp + 7;
             }
@@ -144,7 +142,6 @@ void UserInterface::updateLCD(uint8_t type, uint8_t num)
             uint8_t col_temp = (database.temperature() < 100) ? 13 : 12;
             lcd.setCursor(col_temp,1);
             lcd.print(F("|"));
-            //lcdSP(col_temp, 1, '|');
             lcdSP(col_temp + 1, 1, database.temperature());
             lcd.print(F("F|"));
         }
@@ -191,9 +188,6 @@ void UserInterface::updateLCD(uint8_t type, uint8_t num)
                 lcd.print(F(" T | is"));
                 lcd.setCursor(0,3);
                 lcd.print(F(" W |"));
-                // lcdSP(0, 1, " M | Scheduling");
-                // lcdSP(0, 2, " T | is");
-                // lcdSP(0, 3, " W |");
                 (schedule.isEnable()) ? lcdSP(8, 2, "ENABLED ") : lcdSP(8, 2, "DISABLED");
             }
         }
@@ -237,23 +231,13 @@ void UserInterface::printMainLCD(void)
     lcd.setCursor(0, 3);
     lcd.print(F("V1:    V2:    V3:"));
 
-    // lcdSP(0, 1, "Battery:");
-    // lcdSP(0, 2, "S1:");
-    // lcdSP(7, 2, "S2:");
-    // lcdSP(14, 2, "S3:");
-    // lcdSP(0, 3, "V1:");
-    // lcdSP(7, 3, "V2:");
-    // lcdSP(14, 3, "V3:");
-
-
+ 
     if(isInitialBootup){
         lcd.setCursor(18,1);
         lcd.print(F("SD"));
-        //lcdSP(18,1,"SD");
         isInitialBootup = false;
         return;
     }
-
 
     lcd.setCursor(18, 1);
     if (schedule.isRunning())
@@ -269,11 +253,18 @@ void UserInterface::printMainLCD(void)
         lcd.print(F("SD"));
     }
 
+    if(idleStatus){
+        return;
+    }
+
+    delay(100);
+
     for (int i = 0, col_temp = 3; i < 3; i++)
     {
         uint8_t soilTemp = database.soilSensor(i);
         lcdSP(col_temp, 2, soilTemp);
-        lcd.print(F("%"));
+        if(soilTemp<100)
+            lcd.print(F("%"));
         if (database.isValveAvailable(i))
         {
             uint8_t valveTemp = database.valveStatus(i);
@@ -284,10 +275,11 @@ void UserInterface::printMainLCD(void)
         {
             lcd.setCursor(col_temp,3);
             lcd.print(F("X"));
-            //lcdSP(col_temp, 3, 'X');
         }
         col_temp = col_temp + 7;
     }
+
+    delay(100);
 
     uint8_t dayTemp = database.getDayOfWeek();
     if (dayTemp != 9)
@@ -298,10 +290,11 @@ void UserInterface::printMainLCD(void)
         printTime(database.getHour(), database.getMinute(), database.getPM(), col_temp, 0);
     }
 
+    delay(100);
+
     uint8_t col_temp = (database.temperature() < 100) ? 13 : 12;
     lcd.setCursor(col_temp,1);
     lcd.print(F("|"));
-    //lcdSP(col_temp, 1, '|');
     lcdSP(col_temp + 1, 1, database.temperature());
     lcd.print(F("F|"));
 
@@ -311,18 +304,15 @@ void UserInterface::printMenuLCD(void)
 {
 
     lcd.clear();
-    //(!skipMarker) ? lcdSP(0, 0, ">Valve Setting") : lcdSP(0, 0, " Valve Setting");
     if (currentDisplay == MENU_LCD)
     {
         lcd.setCursor(0,0);
         lcd.print(F(" Valve Setting"));
-        //lcdSP(0, 0, " Valve Setting");
     }
     else
     {
         lcd.setCursor(0,0);
         lcd.print(F(">Valve Setting"));
-        //lcdSP(0, 0, ">Valve Setting");
     }
 
     lcd.setCursor(0,1);
@@ -331,10 +321,6 @@ void UserInterface::printMenuLCD(void)
     lcd.print(F(" Set Time/Schedule"));
     lcd.setCursor(0,3);
     lcd.print(F(" Go to Main Display")); 
-
-    // lcdSP(0, 1, " Edit Crop Values");
-    // lcdSP(0, 2, " Set Time/Schedule");
-    // lcdSP(0, 3, " Go to Main Display");
 
 
     page = 0;
@@ -348,7 +334,6 @@ void UserInterface::printValveSensorLCD(void)
     (!skipMarker) ? lcdSP(0, 0, ">Go back") : lcdSP(0, 0, " Go back");
     lcd.setCursor(14,0);
     lcd.print(F("Sensor"));
-    //lcdSP(14, 0, "Sensor");
     lcd.setCursor(0,1);
     lcd.print(F(" V1"));
     lcd.setCursor(0, 2);
@@ -356,9 +341,6 @@ void UserInterface::printValveSensorLCD(void)
     lcd.setCursor(0, 3);
     lcd.print(F(" V3"));
 
-    // lcdSP(0, 1, " V1");
-    // lcdSP(0, 2, " V2");
-    // lcdSP(0, 3, " V3");
 
     for (int i = 0; i < 3; i++)
     {
@@ -376,7 +358,6 @@ void UserInterface::printValveSensorLCD(void)
         {
             lcd.setCursor(5,i+1);
             lcd.print(F("--Disabled--"));
-            //lcdSP(5, i + 1, "--Disabled--");
         }
     }
 
@@ -400,9 +381,6 @@ void UserInterface::printCropLCD(void)
         lcd.setCursor(9,3);
         lcd.print(F("|        v"));
 
-        // lcdSP(0, 1, " Select: |Current");
-        // lcdSP(9, 2, "|crop is");
-        // lcdSP(9, 3, "|        v");
         printCrop(database.crop(database.getSelectedCropNum()), 10, 3);
         printCrop(0, 1, 2);
         printCrop(1, 1, 3);
@@ -428,7 +406,6 @@ void UserInterface::printCropLCD(void)
         printCrop(6, 1, 0);
         lcd.setCursor(1,1);
         lcd.print(F("Go back"));
-        //lcdSP(1, 1, "Go back");
         lcd.setCursor(18, 0);
         lcd.print(F("^"));
 
@@ -453,10 +430,6 @@ void UserInterface::printCropThresholdLCD(void)
         lcd.setCursor(7, 2);
         lcd.print(F("Target Value"));
 
-        // lcdSP(0, 1, " default settings");
-        // lcdSP(0, 2, " Crop");
-        // lcdSP(7, 2, "Target Value");
-        
         printCrop(0, 1, 3);
         lcdSP(12, 3, database.cropThreshold(0));
         lcd.print(F("%"));
@@ -494,7 +467,6 @@ void UserInterface::printCropThresholdLCD(void)
         lcd.print(F("%"));
         lcd.setCursor(1,2);
         lcd.print(F("Go back"));
-        //lcdSP(1, 2, "Go back");
         lcd.setCursor(18, 0);
         lcd.print(F("^"));
 
@@ -510,19 +482,16 @@ void UserInterface::printThreshholdNumLCD(void)
     lcd.clear();
     lcd.setCursor(0,0);
     lcd.print(F("Curr Thresh: "));
-    //lcdSP(0, 0, "Curr Thresh: ");
     lcd.print(database.cropThreshold(database.getSelectedCropNum()));
     lcd.print(F("%"));
     printCrop(database.getSelectedCropNum(), 0, 3);
     lcd.setCursor(16,3);
     lcd.print(F("Done"));
-    //lcdSP(16, 3, "Done");
     printDigit(database.cropThreshold(database.getSelectedCropNum()), 7, 1);
     currentDisplay = THRESHOLD_NUM_LCD;
     cursor[COLUMN] = menu[currentDisplay].initialPos;
     lcd.setCursor(cursor[COLUMN],3);
     lcd.print(F("---"));
-    //lcdSP(cursor[COLUMN], 3, "---");
 }
 
 void UserInterface::printTimeLCD(void)
@@ -551,7 +520,6 @@ void UserInterface::printTimeLCD(void)
     printTime(hour, min, pm, 1, 1);
     lcd.setCursor(1,3);
     lcd.print(F("Go back"));
-    //lcdSP(1, 3, "Go back");
 
     cursor[COLUMN] = menu[currentDisplay].initialPos;
 }
@@ -568,9 +536,6 @@ void UserInterface::printScheduleLCD(void)
         lcd.setCursor(0, 3);
         lcd.print(F(" W |               "));
 
-        // lcdSP(0, 1, " M | Scheduling");
-        // lcdSP(0, 2, " T | is            ");
-        // lcdSP(0, 3, " W |               ");
         (schedule.isEnable()) ? lcdSP(8, 2, "ENABLED ") : lcdSP(8, 2, "DISABLED ");
 
         return;
@@ -593,9 +558,6 @@ void UserInterface::printScheduleLCD(void)
             lcd.setCursor(0, 3);
             lcd.print(F(" W | is at"));
 
-            // lcdSP(0, 1, " M | Is ENABLED");
-            // lcdSP(0, 2, " T | Next checkpoint");
-            // lcdSP(0, 3, " W | is at");
             uint8_t buffer[3] = {0};
             schedule.getDeadline(buffer);
             printTime(buffer[0], buffer[1], buffer[2], 11, 3);
@@ -609,9 +571,6 @@ void UserInterface::printScheduleLCD(void)
             lcd.setCursor(0, 3);
             lcd.print(F(" W |"));
 
-            // lcdSP(0, 1, " M | Scheduling");
-            // lcdSP(0, 2, " T | is");
-            // lcdSP(0, 3, " W |");
             (schedule.isEnable()) ? lcdSP(8, 2, "ENABLED ") : lcdSP(8, 2, "DISABLED");
         }
 
@@ -633,12 +592,6 @@ void UserInterface::printScheduleLCD(void)
         lcd.setCursor(19, 3);
         lcd.print(F("v"));
 
-        // lcdSP(0, 0, " Th|");
-        // lcdSP(0, 1, " F |");
-        // lcdSP(0, 2, " S |");
-        // lcdSP(0, 3, " Su|");
-        // lcdSP(19, 3, "v");
-
         break;
     }
     case 2:
@@ -650,9 +603,6 @@ void UserInterface::printScheduleLCD(void)
         lcd.setCursor(19, 0);
         lcd.print(F("^"));
 
-        // lcdSP(0, 0, " Adjust Date/Time");
-        // lcdSP(0, 1, " Go back");
-        // lcdSP(19, 0, "^");
 
         break;
     }
@@ -705,9 +655,6 @@ void UserInterface::printScheduleLCD3(void)
     lcd.setCursor(0, 3);
     lcd.print(F(" Go back |"));
 
-    // lcdSP(0, 1, " Delete  |");
-    // lcdSP(0, 2, " Edit    |");
-    // lcdSP(0, 3, " Go back |");
     (num != 2) ? printDay(day, 11, 0) : printDay(day, 10, 0);
     printSchedule(day, num, num + 1, 11, 1);
 
@@ -726,7 +673,6 @@ void UserInterface::printScheduleLCD4(void)
     printSchedule(day, num, num + 1, 1, 1);
     lcd.setCursor(0,3);
     lcd.print(F(" Go back"));
-    //lcdSP(0, 3, " Go back");
 
     cursor[ROW] = 1;
 }
@@ -767,7 +713,6 @@ void UserInterface::printTime(uint8_t hour, uint8_t minute, bool isPM, uint8_t c
     {
         lcd.setCursor(1,1);
         lcd.print(F("0"));
-        //lcdSP(1, 1, '0');
         lcdSP(2, 1, hour);
     }
     else
@@ -825,14 +770,12 @@ void UserInterface::printSchedule(uint8_t day, uint8_t startNum, uint8_t endNum,
             {
                 lcd.setCursor(col-1,row);
                 lcd.print(F("*"));
-                //lcdSP(col - 1, row, "*");
             }
             uint8_t temp = (buffer[0] < 10) ? col + 1 : col;
             if (buffer[0] < 10 && currentDisplay == SCHEDULE_LCD4)
             {
                 lcd.setCursor(col,row);
                 lcd.print(F("0"));
-                //lcdSP(col, row, "0");
             }
             printTime(buffer[0], buffer[1], buffer[2], temp, row);
             switch (currentDisplay)
@@ -841,21 +784,18 @@ void UserInterface::printSchedule(uint8_t day, uint8_t startNum, uint8_t endNum,
             {
                 lcd.setCursor(11, row);
                 lcd.print(F("-"));
-                // lcdSP(11, row, "-");
                 break;
             }
             case SCHEDULE_LCD2:
             {
                 lcd.setCursor(10, row);
                 lcd.print(F("-"));
-                // lcdSP(10, row, "-");
                 break;
             }
             case SCHEDULE_LCD3:
             {
                 lcd.setCursor(13, 2);
                 lcd.print(F("to"));
-                // lcdSP(13, 2, "to");
                 col = 3;
                 row = 3;
                 break;
@@ -864,7 +804,6 @@ void UserInterface::printSchedule(uint8_t day, uint8_t startNum, uint8_t endNum,
             {
                 lcd.setCursor(9, row);
                 lcd.print(F("-"));
-                // lcdSP(9, row, "-");
                 col = col + 2;
                 break;
             }
@@ -875,7 +814,6 @@ void UserInterface::printSchedule(uint8_t day, uint8_t startNum, uint8_t endNum,
                 if (currentDisplay != SCHEDULE_LCD3){
                     lcd.setCursor(col_temp+8,row);
                     lcd.print(F("0"));
-                    //lcdSP(col_temp + 8, row, "0");
                 }
                 col_temp++;
             }
@@ -972,9 +910,12 @@ void UserInterface::idle(void)
     menu[currentDisplay].cursorType = 0;
     if(currentDisplay != MAIN_LCD)
         printMainLCD();
+
+    delay(200);
     lcd.noBacklight();
     if (schedule.isEnable())
     {
+        delay(200);
         lcd.noDisplay();
         noDisplay = true;
     }
@@ -982,6 +923,7 @@ void UserInterface::idle(void)
 void UserInterface::wakeup(void)
 {
     lcd.backlight();
+    delay(500);
     if (noDisplay)
     {
         lcd.display();
@@ -1126,10 +1068,7 @@ void UserInterface::updateCursor(int8_t direction)
                         lcd.setCursor(4, 3);
                         lcd.print(F(" is at"));
 
-                        // lcdSP(4, 1, " Is ENABLED");
-                        // lcdSP(4, 2, " Next checkpoint");
-                        // lcdSP(5, 3, "               ");
-                        // lcdSP(4, 3, " is at");
+ 
                         uint8_t buffer[3] = {0};
                         schedule.getDeadline(buffer);
                         printTime(buffer[0], buffer[1], buffer[2], 11, 3);
@@ -1145,14 +1084,10 @@ void UserInterface::updateCursor(int8_t direction)
             lcd.setCursor(4, 3);
             lcd.print(F("               "));
 
-            // lcdSP(4, 1, "               ");
-            // lcdSP(4, 2, "               ");
-            // lcdSP(4, 3, "               ");
             if (page == 1)
             {
                 lcd.setCursor(4,0);
                 lcd.print(F("               "));
-                //lcdSP(4, 0, "               ");
             }
 
             uint8_t iteration = (page == 1) ? (3) : 2;
@@ -1606,6 +1541,7 @@ void UserInterface::selectButton(void)
                                          globalBuffer[14] * 10 + globalBuffer[15]);
 
                 database.enableRTCFlag();
+                delay(100);
             }
             page = 0;
             printScheduleLCD();
@@ -1618,9 +1554,7 @@ void UserInterface::selectButton(void)
             lcd.print(F(" "));
             lcd.setCursor(1, 1);
             lcd.print(F("--      "));
-            // lcdSP(13, 0, 'D');
-            // lcdSP(0, 0, ' ');
-            // lcdSP(1, 1, "--      ");
+
             menu[currentDisplay].cursorType = 1;
             cursor[COLUMN] = 2;
         }
@@ -1632,9 +1566,7 @@ void UserInterface::selectButton(void)
             lcd.print(F(" "));
                         lcd.setCursor(1,2);
             lcd.print(F("--"));
-            // lcdSP(11, 1, 'D');
-            // lcdSP(0, 1, " ");
-            // lcdSP(1, 2, "--");
+
             menu[currentDisplay].cursorType = 1;
             cursor[COLUMN] = 2;
         }
@@ -1646,9 +1578,7 @@ void UserInterface::selectButton(void)
             lcd.print(F(" "));
             lcd.setCursor(0, 1);
             lcd.print(F(">"));
-            // lcdSP(11, 1, "  ");
-            // lcdSP(11, 2, "  ");
-            // lcdSP(0, 1, '>');
+
             menu[currentDisplay].cursorType = 0;
             cursor[COLUMN] = 0;
         }
@@ -1659,9 +1589,7 @@ void UserInterface::selectButton(void)
             lcd.print(F(" "));
             lcd.setCursor(0, 0);
             lcd.print(F(">"));
-            // lcdSP(13,0,' ');
-            // lcdSP(13,1,' ');
-            // lcdSP(0,0,'>');
+
             menu[currentDisplay].cursorType = 0;
             cursor[COLUMN] = 0;
             printTimeLCD();
@@ -1739,13 +1667,10 @@ void UserInterface::selectButton(void)
                                                  globalBuffer[9]                         //End: PM or AM
 
                 );
+
                 if (boolValue == false)
                 {
-                    // lcd.clear();
-                    // lcdSP(0, 0, "Cause of error: ");
-                    // lcdSP(0, 1, "Adding to Schedule");
-                    // lcdSP(0, 2, "Do: Please restart");
-                    // lcdSP(4, 3, "device");
+ 
                     printScheduleLCD2();
                     break;
                 }
@@ -1763,6 +1688,7 @@ void UserInterface::selectButton(void)
                 }
             }
 
+            delay(100);
             printScheduleLCD2();
         }
         else if (cursor[ROW] == 0)
@@ -1796,9 +1722,7 @@ void UserInterface::selectButton(void)
             lcd.print(F(" "));
             lcd.setCursor(1, 2);
             lcd.print(F("--"));
-            // lcdSP(19, 1, "D");
-            // lcdSP(0, 1, " ");
-            // lcdSP(1, 2, "--");
+
             menu[currentDisplay].cursorType = 1;
             cursor[COLUMN] = 2;
         }
@@ -1823,7 +1747,6 @@ void UserInterface::selectButton(void)
             {
                 lcd.setCursor(11,3);
                 lcd.print(F("Invalid"));
-                //lcdSP(11, 3, "Invalid");
             }
             else
             {
@@ -1837,10 +1760,6 @@ void UserInterface::selectButton(void)
                 lcd.print(F("       "));
 
                 //Restore default cursor
-                // lcdSP(19, 1, " ");
-                // lcdSP(19, 2, " ");
-                // lcdSP(0, 1, ">");
-                // lcdSP(11, 3, "       ");
                 menu[currentDisplay].cursorType = 0;
                 cursor[COLUMN] = 0;
             }
@@ -1850,12 +1769,10 @@ void UserInterface::selectButton(void)
             if(cursor[MODE]){
                 lcd.setCursor(9,3);
                 lcd.print(F(" "));
-                //lcdSP(9,3, " ");
             }
             else{
                 lcd.setCursor(9,3);
                 lcd.print(F("S"));
-                //lcdSP(9,3, "S");
             }
 
             cursor[MODE] = !cursor[MODE];

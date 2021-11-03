@@ -55,7 +55,6 @@ bool Schedule::update(uint8_t day, uint8_t num, uint8_t _startHr, uint8_t _start
         scheduleTable[day][num].endMin = _endMin;
         scheduleTable[day][num].endPM = _endPM;
     }
-    //scheduleTable[day][num].active = (setToInActive)?false:true;
     scheduleTable[day][num].active = false;
     scheduleTable[day][num].empty = false;
 
@@ -71,7 +70,6 @@ void Schedule::disableDay(uint8_t day, uint8_t num)
     scheduleTable[day][num].active = false;
 }
 
-//Bug, do not update other timer if schedule was previous inactive
 void Schedule::enableDay(uint8_t day, uint8_t num)
 {
     if (scheduleTable[day][num].active || scheduleTable[day][num].empty)
