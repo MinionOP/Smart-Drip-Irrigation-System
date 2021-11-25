@@ -66,10 +66,12 @@ void UserInterface::updateLCD(uint8_t type, uint8_t num)
                 if (database.isValveAvailable(i))
                 {
                     uint8_t soilTemp = database.soilSensor(i);
+                    delay(20);
                     uint8_t valveTemp = database.valveStatus(i);
                     lcdSP(16, i + 1, soilTemp);
 
-                    (soilTemp > 9) ? lcdSP(18, i + 1, "%") : lcdSP(17, i + 1, "%");
+                    (soilTemp >= 100) ? lcdSP(19, i + 1, "%") : (soilTemp > 9) ? lcdSP(18, i + 1, "%")
+                                                                               : lcdSP(17, i + 1, "%");
                     (valveTemp == 0) ? lcdSP(4, i + 1, "x") : lcdSP(4, i + 1, " ");
                 }
             }
@@ -257,7 +259,7 @@ void UserInterface::printMainLCD(void)
         return;
     }
 
-    delay(100);
+    delay(50);
 
     for (int i = 0, col_temp = 3; i < 3; i++)
     {
@@ -279,7 +281,7 @@ void UserInterface::printMainLCD(void)
         col_temp = col_temp + 7;
     }
 
-    delay(100);
+    delay(50);
 
     uint8_t dayTemp = database.getDayOfWeek();
     if (dayTemp != 9)
@@ -347,12 +349,17 @@ void UserInterface::printValveSensorLCD(void)
         if (database.isValveAvailable(i))
         {
             uint8_t soilTemp = database.soilSensor(i);
+
+            delay(20);
+
             uint8_t valveTemp = database.valveStatus(i);
+
 
             lcdSP(16, i + 1, soilTemp);
             printCrop(database.crop(i), 7, i + 1);
             (valveTemp == 0) ? lcdSP(3, i + 1, "|x|") : lcdSP(3, i + 1, "| |");
-            (soilTemp > 9) ? lcdSP(18, i + 1, "%") : lcdSP(17, i + 1, "%");
+            (soilTemp >=100) ? lcdSP(19, i + 1, "%") : (soilTemp >9) ? lcdSP(18, i + 1, "%")
+                                                                       : lcdSP(17, i + 1, "%");
         }
         else
         {
@@ -1386,7 +1393,12 @@ void UserInterface::selectButton(void)
         }
         if (page == 0 && cursor[ROW] == 0)
         {
-            database.setValveAvailability(selValve, !database.isValveAvailable(selValve));
+
+            bool c = database.isValveAvailable(selValve);
+            database.setValveAvailability(selValve, !c);
+            if(c){
+                database.setSoilSensor(selValve, 0);
+            }
         }
         else if (page == 0)
         {

@@ -46,6 +46,9 @@ void Database::load(uint8_t data[C_SAVE_SIZE])
         else
         {
             valveAvailArr[j - 3] = data[i];
+            if(valveAvailArr[j-3] == 0){
+                soilArr[j-3] = 0;
+            }
             j++;
         }
     }

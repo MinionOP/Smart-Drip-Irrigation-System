@@ -15,6 +15,7 @@
 
 //Uncomment to use debugFun()
 //#define DEBUGGING
+//#define DEBUG_SOIL
 
 //Uncomment for STACK debugging
 // #define DEBUG_STACK
@@ -205,7 +206,7 @@ void setup()
 	Interface.printDisplay(MAIN_LCD);
 
 #if defined(DEBUGGING)
-	debugFun();
+	//debugFun();
 #else
 
 	xTaskCreate(vTaskRTC, "RTC", 950, NULL, 2, NULL);
@@ -224,7 +225,7 @@ void setup()
  */
 void loop()
 {
-#if !defined(DEBUGGING) && !defined(DEBUG_STACK)
+#if !defined(DEBUGGING) && !defined(DEBUG_STACK) && !defined(DEBUG_SOIL)
 	set_sleep_mode(SLEEP_MODE_PWR_SAVE);
 	portENTER_CRITICAL();
 	sleep_enable();
@@ -421,12 +422,21 @@ void vTaskSoilSensor(void *pvParameters)
 	digitalWrite(SOIL_SENSOR2_POWER_PIN, LOW);
 	digitalWrite(SOIL_SENSOR3_POWER_PIN, LOW);
 
+	// digitalWrite(SOIL_SENSOR1_POWER_PIN, HIGH);
+	// digitalWrite(SOIL_SENSOR2_POWER_PIN, HIGH);
+	// digitalWrite(SOIL_SENSOR3_POWER_PIN, HIGH);
+
+
 	uint8_t s_pin[NUM_SOIL_SENSOR] = {SOIL_SENSOR1_PIN, SOIL_SENSOR2_PIN, SOIL_SENSOR3_PIN};
 
-	uint16_t sensor_lowerBound[NUM_SOIL_SENSOR] = {400, 400, 400},
-			 sensor_upperBound[NUM_SOIL_SENSOR] = {500, 500, 500},
+	//Marker, Data
+	//3->S1 
+	//2 = S2
+	//1 = S3
+	uint16_t sensor_lowerBound[NUM_SOIL_SENSOR] = {580, 995, 300},
+			 sensor_upperBound[NUM_SOIL_SENSOR] = {1000, 1023, 600},
 			 lowestBound = 200,
-			 highestBound = 700,
+			 highestBound = 1300,
 			 moisture_value;
 
 	bool toUpdate;
@@ -447,7 +457,7 @@ void vTaskSoilSensor(void *pvParameters)
 		digitalWrite(SOIL_SENSOR3_POWER_PIN, HIGH);
 
 		//Wait until power is stable
-		vTaskDelay(pdMS_TO_TICKS(150));
+		vTaskDelay(pdMS_TO_TICKS(300));
 
 		for (int i = 0; i < NUM_SOIL_SENSOR; i++)
 		{
@@ -456,6 +466,10 @@ void vTaskSoilSensor(void *pvParameters)
 
 			//Read Soil Sensors
 			moisture_value = analogRead(s_pin[i]);
+
+#if defined(DEBUG_SOIL)
+			Serial.print("V: " + String(i) + " A: " + String(moisture_value));
+#endif
 			toUpdate = false;
 
 			if (moisture_value < sensor_lowerBound[i])
@@ -487,16 +501,22 @@ void vTaskSoilSensor(void *pvParameters)
 			moisture_value = min(moisture_value, sensor_upperBound[i]);
 			moisture_value = map(moisture_value, sensor_upperBound[i], sensor_lowerBound[i], 0, 100);
 
+#if defined(DEBUG_SOIL)
+			Serial.println(" d: " + String(moisture_value));
+			if(i == 2){
+				Serial.println(" ");
+			}
+#endif
 			Interface.database.setSoilSensor(i, moisture_value);
 
 			//Check if any valves need to be updated
-			if (Interface.database.soilSensor(i) < Interface.database.cropThreshold(Interface.database.crop(i)) &&
+			if (moisture_value < Interface.database.cropThreshold(Interface.database.crop(i)) &&
 				Interface.database.valveStatus(i) == CLOSE)
 			{
 				needWater[i] = true;
 				toUpdate = true;
 			}
-			else if (Interface.database.soilSensor(i) > Interface.database.cropThreshold(Interface.database.crop(i)) &&
+			else if (moisture_value > Interface.database.cropThreshold(Interface.database.crop(i)) &&
 					 Interface.database.valveStatus(i) == OPEN)
 			{
 				needWater[i] = false;
@@ -562,6 +582,7 @@ void vTaskRTC(void *pvParameters)
 			xTaskNotifyGive(xAlarmTaskHandle);
 		}
 
+#if !defined(DEBUGGING) && !defined(DEBUG_STACK) && !defined(DEBUG_SOIL)
 		if (!Interface.isIdle())
 		{
 			idleCounter++;
@@ -578,6 +599,7 @@ void vTaskRTC(void *pvParameters)
 				Interface.idle();
 			}
 		}
+#endif
 
 		//Read temperature and update LCD
 		float t = rtc.getTemperature() * (1.8) + 32;
@@ -732,13 +754,17 @@ void valveFun(void){
 	{
 		if (needWater[i] && Interface.database.isValveAvailable(i))
 		{
+#if !defined(DEBUG_SOIL)
 			digitalWrite(relayArr[i], LOW);
+#endif
 			digitalWriteLED(valveLEDArr[i], HIGH);
 			Interface.database.setValveStatus(i, OPEN);
 		}
 		else
 		{
+#if !defined(DEBUG_SOIL)
 			digitalWrite(relayArr[i], HIGH);
+#endif
 			digitalWriteLED(valveLEDArr[i], LOW);
 			Interface.database.setValveStatus(i, CLOSE);
 		}
